@@ -92,7 +92,6 @@ function showTab(tab) {
   event.target.classList.add('active');
   if (tab === 'play') {
     const title = document.getElementById('game-title').value;
-    const author = document.getElementById('game-author').value;
     const desc = document.getElementById('game-description').value;
     const hasInput = title || desc || Object.keys(scenes).length > 1;
     if (!hasInput) resetCreateForm();
