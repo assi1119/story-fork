@@ -13,7 +13,6 @@
     <div class="header-right">
       <div id="user-info" style="display:none">
         <span id="user-name"></span>
-        <button class="logout-btn" onclick="logout()">ログアウト</button>
       </div>
       <div id="login-btns">
         <button class="login-btn" onclick="showLoginModal()">ログイン</button>
@@ -167,6 +166,11 @@
     </div>
 
   </main>
+
+  <footer id="footer" style="display:none">
+    <span id="footer-user-name"></span>
+    <button class="footer-logout-btn" onclick="logout()">ログアウト</button>
+  </footer>
 
   <script type="module" src="index.js"></script>
 </body>

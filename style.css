@@ -1008,3 +1008,36 @@ textarea {
   font-weight: 700;
   margin-bottom: 12px;
 }
+
+footer {
+  background: #fff;
+  border-top: 2px solid #e0f5ee;
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 40px;
+}
+
+#footer-user-name {
+  font-size: 13px;
+  color: #aaa;
+}
+
+.footer-logout-btn {
+  background: transparent;
+  color: #ccc;
+  border: 1px solid #ddd;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  transition: all 0.2s;
+}
+
+.footer-logout-btn:hover {
+  border-color: #00c896;
+  color: #00c896;
+}
