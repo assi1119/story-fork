@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Story Fork</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <h1>Story Fork</h1>
+    <nav>
+      <button class="tab-btn active" onclick="showTab('play')">遊ぶ</button>
+      <button class="tab-btn" onclick="showTab('create')">作る</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <div id="play-tab">
+      <div id="search-bar">
+        <input type="text" id="search-input" placeholder="タイトル・作者名・ジャンルで検索..." oninput="searchGames()">
+      </div>
+      <div id="genre-filter">
+        <button class="genre-btn active" onclick="filterGenre('all')">すべて</button>
+        <button class="genre-btn" onclick="filterGenre('RPG')">RPG</button>
+        <button class="genre-btn" onclick="filterGenre('TRPG')">TRPG</button>
+        <button class="genre-btn" onclick="filterGenre('RP')">RP</button>
+        <button class="genre-btn" onclick="filterGenre('料理')">料理</button>
+        <button class="genre-btn" onclick="filterGenre('ラブストーリー')">ラブストーリー</button>
+        <button class="genre-btn" onclick="filterGenre('ホラー')">ホラー</button>
+        <button class="genre-btn" onclick="filterGenre('推理・ミステリー')">推理・ミステリー</button>
+        <button class="genre-btn" onclick="filterGenre('ファンタジー')">ファンタジー</button>
+        <button class="genre-btn" onclick="filterGenre('日常')">日常</button>
+        <button class="genre-btn" onclick="filterGenre('アドベンチャー')">アドベンチャー</button>
+        <button class="genre-btn" onclick="filterGenre('コメディ')">コメディ</button>
+        <button class="genre-btn" onclick="filterGenre('選択')">選択</button>
+        <button class="genre-btn" onclick="filterGenre('その他')">その他</button>
+      </div>
+      <div id="game-list"></div>
+    </div>
+
+    <div id="create-tab" style="display:none">
+      <div id="mode-select">
+        <h2>どのモードで作りますか？</h2>
+        <div class="mode-cards">
+          <div class="mode-card" onclick="startCreate('template')">
+            <h3>テンプレモード</h3>
+            <p>ジャンルに合わせたパラメータが自動で入ります</p>
+          </div>
+          <div class="mode-card" onclick="startCreate('free')">
+            <h3>自由モード</h3>
+            <p>ゼロから自分で作れます</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="game-form" style="display:none">
+        <button class="back-form-btn" onclick="backToModeSelect()">← 選択画面に戻る</button>
+        <div id="form-header">
+          <div class="form-row">
+            <label>タイトル</label>
+            <input type="text" id="game-title" placeholder="ゲームのタイトル">
+          </div>
+          <div class="form-row">
+            <label>ジャンル</label>
+            <select id="game-genre" onchange="updateGenre()">
+              <option value="RPG">RPG</option>
+              <option value="TRPG">TRPG</option>
+              <option value="RP">RP</option>
+              <option value="料理">料理</option>
+              <option value="ラブストーリー">ラブストーリー</option>
+              <option value="ホラー">ホラー</option>
+              <option value="推理・ミステリー">推理・ミステリー</option>
+              <option value="ファンタジー">ファンタジー</option>
+              <option value="日常">日常</option>
+              <option value="アドベンチャー">アドベンチャー</option>
+              <option value="コメディ">コメディ</option>
+              <option value="選択">選択</option>
+              <option value="その他">その他</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>説明</label>
+            <input type="text" id="game-description" placeholder="どんなゲームか一言で">
+          </div>
+          <div class="form-row">
+            <label>製作者名</label>
+            <input type="text" id="game-author" placeholder="あなたの名前やニックネーム">
+          </div>
+          <div class="form-row">
+            <label>サムネイル画像（任意）</label>
+            <input type="file" id="game-thumbnail" accept="image/*" onchange="previewThumbnail(this)">
+            <img id="thumbnail-preview" src="" alt="" style="display:none; width:200px; border-radius:8px; margin-top:8px;">
+          </div>
+        </div>
+
+        <div id="library-panel">
+          <h3>要素ライブラリ</h3>
+          <div id="library-list"></div>
+          <div id="library-buttons">
+            <button onclick="addLibrary('affection')">好感度を追加</button>
+            <button onclick="addLibrary('dice')">ダイスを追加</button>
+            <button onclick="addLibrary('saikoro')">さいころを追加</button>
+            <button onclick="addLibrary('san')">SAN値を追加</button>
+            <button onclick="addLibrary('counter')">カウンターを追加</button>
+            <button onclick="addLibrary('money')">所持金を追加</button>
+            <button onclick="addLibrary('time')">時間・日数を追加</button>
+            <button onclick="addLibrary('flag')">フラグを追加</button>
+            <button onclick="addLibrary('status')">天気・状態を追加</button>
+          </div>
+        </div>
+
+        <div id="tree-editor">
+          <h3>シーンツリー</h3>
+          <div id="scene-tree"></div>
+        </div>
+
+        <button id="upload-btn" onclick="uploadGame()">アップロード</button>
+      </div>
+    </div>
+
+  </main>
+
+  <script type="module" src="index.js"></script>
+</body>
+</html>

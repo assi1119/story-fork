@@ -1,0 +1,106 @@
+[
+  {
+    "id": "game1",
+    "title": "森の冒険",
+    "description": "森の中での選択肢冒険ゲーム",
+    "story": {
+      "start": {
+        "title": "はじまり",
+        "text": "あなたは森の前に立っている。どうする？",
+        "choices": [
+          { "text": "森に入る", "next": "forest" },
+          { "text": "引き返す", "next": "back" }
+        ]
+      },
+      "forest": {
+        "title": "森の中",
+        "text": "薄暗い森の中に入った。奥から物音がする。",
+        "choices": [
+          { "text": "物音の方に進む", "next": "monster" },
+          { "text": "逃げる", "next": "escape" }
+        ]
+      },
+      "monster": {
+        "title": "モンスター！",
+        "text": "大きなモンスターと出会った！",
+        "choices": [
+          { "text": "戦う", "next": "ending_win" },
+          { "text": "逃げる", "next": "ending_lose" }
+        ]
+      },
+      "escape": {
+        "title": "脱出",
+        "text": "なんとか森から逃げ出した。",
+        "choices": [
+          { "text": "最初からやり直す", "next": "start" }
+        ]
+      },
+      "back": {
+        "title": "引き返した",
+        "text": "村に戻った。安全だが冒険はできなかった。",
+        "choices": [
+          { "text": "最初からやり直す", "next": "start" }
+        ]
+      },
+      "ending_win": {
+        "title": "エンディング：勝利！",
+        "text": "モンスターを倒した！あなたは英雄になった。おめでとう！",
+        "choices": [
+          { "text": "最初からやり直す", "next": "start" }
+        ]
+      },
+      "ending_lose": {
+        "title": "エンディング：敗走",
+        "text": "モンスターから逃げ出した。また挑戦しよう。",
+        "choices": [
+          { "text": "最初からやり直す", "next": "start" }
+        ]
+      }
+    }
+  },
+  {
+    "id": "game2",
+    "title": "料理の選択",
+    "description": "今日の夕食は何にする？",
+    "story": {
+      "start": {
+        "title": "今日の夕食",
+        "text": "冷蔵庫を開けた。何を作る？",
+        "choices": [
+          { "text": "カレーを作る", "next": "curry" },
+          { "text": "パスタを作る", "next": "pasta" }
+        ]
+      },
+      "curry": {
+        "title": "カレー作り",
+        "text": "玉ねぎを炒めている。どのくらい炒める？",
+        "choices": [
+          { "text": "じっくり炒める", "next": "ending_good" },
+          { "text": "さっと炒める", "next": "ending_bad" }
+        ]
+      },
+      "pasta": {
+        "title": "パスタ作り",
+        "text": "ソースは何にする？",
+        "choices": [
+          { "text": "トマトソース", "next": "ending_good" },
+          { "text": "クリームソース", "next": "ending_good" }
+        ]
+      },
+      "ending_good": {
+        "title": "完成！",
+        "text": "美味しい料理が完成した！大成功！",
+        "choices": [
+          { "text": "最初からやり直す", "next": "start" }
+        ]
+      },
+      "ending_bad": {
+        "title": "失敗...",
+        "text": "少し焦げてしまった。次は気をつけよう。",
+        "choices": [
+          { "text": "最初からやり直す", "next": "start" }
+        ]
+      }
+    }
+  }
+]
