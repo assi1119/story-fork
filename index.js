@@ -47,11 +47,27 @@ function switchModalTab(tab) {
 
 async function loginWithGoogle() {
   try {
-    await signInWithPopup(auth, googleProvider);
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    if (!user.displayName) {
+      const name = prompt('ユーザー名を入力してください（製作者名として表示されます）');
+      if (name) await updateProfile(user, { displayName: name });
+    } else {
+      const change = confirm('ユーザー名を変更しますか？（現在：' + user.displayName + '）');
+      if (change) {
+        const name = prompt('新しいユーザー名を入力してください');
+        if (name) await updateProfile(user, { displayName: name });
+      }
+    }
     hideLoginModal();
   } catch (e) {
     alert('Googleログインに失敗しました：' + e.message);
   }
+}
+
+function toggleUserMenu() {
+  const dropdown = document.getElementById('user-dropdown');
+  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
 async function loginWithEmail() {

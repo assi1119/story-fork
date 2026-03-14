@@ -1041,3 +1041,54 @@ footer {
   border-color: #00c896;
   color: #00c896;
 }
+
+.user-menu {
+  position: relative;
+  cursor: pointer;
+}
+
+#user-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #00a878;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+
+#user-name:hover {
+  background: #e6faf3;
+}
+
+#user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #fff;
+  border: 2px solid #e0f5ee;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 4px 16px rgba(0,200,150,0.12);
+  z-index: 100;
+  min-width: 120px;
+}
+
+#user-dropdown button {
+  width: 100%;
+  background: transparent;
+  color: #888;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+#user-dropdown button:hover {
+  background: #e6faf3;
+  color: #00a878;
+}
