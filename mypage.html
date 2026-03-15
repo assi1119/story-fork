@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Story Fork - マイページ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-logo">
+      <a href="index.html" style="text-decoration:none">
+        <h1>Story Fork</h1>
+        <span class="header-tagline">分岐ゲームをつくろう・あそぼう</span>
+      </a>
+    </div>
+    <div class="header-right">
+      <div id="user-info" style="display:none">
+        <div class="user-menu">
+          <span id="user-name" onclick="toggleUserMenu()">
+            <span class="user-avatar"></span>
+            <span id="user-name-text"></span>
+            <span class="user-caret">▾</span>
+          </span>
+          <div id="user-dropdown" style="display:none">
+            <a href="mypage.html">マイページ</a>
+            <button onclick="logout()">ログアウト</button>
+          </div>
+        </div>
+      </div>
+      <div id="login-btns">
+        <button class="login-btn" onclick="location.href='index.html'">ログイン</button>
+      </div>
+      <nav>
+        <a href="index.html" class="tab-btn">トップへ</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div id="mypage-content">
+      <div id="not-logged-in-msg" style="display:none">
+        <div class="login-required">
+          <h2>ログインが必要です</h2>
+          <p>マイページを見るにはログインしてください</p>
+          <button class="submit-btn" onclick="location.href='index.html'">トップへ戻る</button>
+        </div>
+      </div>
+
+      <div id="mypage-main" style="display:none">
+        <div class="mypage-header">
+          <div class="mypage-avatar"></div>
+          <div>
+            <h2 id="mypage-username"></h2>
+            <p id="mypage-email" class="mypage-email"></p>
+          </div>
+          <button class="footer-logout-btn" onclick="logout()">ログアウト</button>
+        </div>
+
+        <div class="mypage-section">
+          <h3>自分の作品</h3>
+          <div id="my-games"></div>
+        </div>
+
+        <div class="mypage-section">
+          <h3>プレイ履歴</h3>
+          <div id="play-history"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="mypage.js"></script>
+</body>
+</html>

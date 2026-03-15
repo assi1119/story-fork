@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Story Fork - 編集</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-logo">
+      <a href="index.html" style="text-decoration:none">
+        <h1>Story Fork</h1>
+        <span class="header-tagline">分岐ゲームをつくろう・あそぼう</span>
+      </a>
+    </div>
+    <div class="header-right">
+      <div id="user-info" style="display:none">
+        <div class="user-menu">
+          <span id="user-name" onclick="toggleUserMenu()">
+            <span class="user-avatar"></span>
+            <span id="user-name-text"></span>
+            <span class="user-caret">▾</span>
+          </span>
+          <div id="user-dropdown" style="display:none">
+            <a href="mypage.html">マイページ</a>
+            <button onclick="logout()">ログアウト</button>
+          </div>
+        </div>
+      </div>
+      <nav>
+        <a href="mypage.html" class="tab-btn">マイページ</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div id="edit-content">
+      <div id="loading-msg">
+        <p class="empty">読み込み中...</p>
+      </div>
+
+      <div id="edit-form" style="display:none">
+        <div class="edit-top-bar">
+          <h2>ゲームを編集</h2>
+          <button class="delete-game-btn" onclick="deleteThisGame()">このゲームを削除</button>
+        </div>
+
+        <div id="form-header">
+          <div class="form-row">
+            <label>タイトル</label>
+            <input type="text" id="game-title" placeholder="ゲームのタイトル">
+          </div>
+          <div class="form-row">
+            <label>ジャンル（3つまで選択）</label>
+            <div id="genre-checkboxes" class="genre-checkbox-grid">
+              <label class="genre-check"><input type="checkbox" value="RPG" onchange="updateGenreSelection()">RPG</label>
+              <label class="genre-check"><input type="checkbox" value="TRPG" onchange="updateGenreSelection()">TRPG</label>
+              <label class="genre-check"><input type="checkbox" value="RP" onchange="updateGenreSelection()">RP</label>
+              <label class="genre-check"><input type="checkbox" value="料理" onchange="updateGenreSelection()">料理</label>
+              <label class="genre-check"><input type="checkbox" value="ラブストーリー" onchange="updateGenreSelection()">ラブストーリー</label>
+              <label class="genre-check"><input type="checkbox" value="ホラー" onchange="updateGenreSelection()">ホラー</label>
+              <label class="genre-check"><input type="checkbox" value="推理・ミステリー" onchange="updateGenreSelection()">推理・ミステリー</label>
+              <label class="genre-check"><input type="checkbox" value="コメディ" onchange="updateGenreSelection()">コメディ</label>
+              <label class="genre-check"><input type="checkbox" value="選択" onchange="updateGenreSelection()">選択</label>
+              <label class="genre-check"><input type="checkbox" value="診断" onchange="updateGenreSelection()">診断</label>
+              <label class="genre-check"><input type="checkbox" value="その他" onchange="updateGenreSelection()">その他</label>
+            </div>
+            <p id="genre-count" class="genre-count">0 / 3 選択中</p>
+          </div>
+          <div class="form-row">
+            <label>説明</label>
+            <input type="text" id="game-description" placeholder="どんなゲームか一言で">
+          </div>
+          <div class="form-row">
+            <label>サムネイル画像（任意）</label>
+            <input type="file" id="game-thumbnail" accept="image/*" onchange="previewThumbnail(this)">
+            <img id="thumbnail-preview" src="" alt="" style="display:none; width:200px; border-radius:8px; margin-top:8px;">
+          </div>
+        </div>
+
+        <div id="library-panel">
+          <h3>要素ライブラリ</h3>
+          <div id="library-list"></div>
+          <div id="library-buttons">
+            <button onclick="addLibrary('affection')">好感度を追加</button>
+            <button onclick="addLibrary('dice')">ダイスを追加</button>
+            <button onclick="addLibrary('saikoro')">さいころを追加</button>
+            <button onclick="addLibrary('san')">SAN値を追加</button>
+            <button onclick="addLibrary('counter')">カウンターを追加</button>
+            <button onclick="addLibrary('money')">所持金を追加</button>
+            <button onclick="addLibrary('time')">時間・日数を追加</button>
+            <button onclick="addLibrary('flag')">フラグを追加</button>
+            <button onclick="addLibrary('status')">天気・状態を追加</button>
+          </div>
+        </div>
+
+        <div id="tree-editor">
+          <h3>シーンツリー</h3>
+          <div id="scene-tree"></div>
+        </div>
+
+        <button id="upload-btn" onclick="saveGame()">上書き保存</button>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="edit.js"></script>
+</body>
+</html>

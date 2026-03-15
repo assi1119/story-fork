@@ -1,0 +1,464 @@
+import { db, auth, signOut, onAuthStateChanged } from './firebase.js';
+import { doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const params = new URLSearchParams(window.location.search);
+const gameId = params.get('id');
+
+let scenes = {};
+let sceneCount = 0;
+let currentMode = 'simple';
+let currentGenre = [];
+let libraries = [];
+let thumbnailData = null;
+let currentUser = null;
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const palette = ['#e94560','#1a6fc4','#1d9e75','#7f77dd','#e8760a','#d4537e','#444441','#0f6e56'];
+
+onAuthStateChanged(auth, async user => {
+  currentUser = user;
+  if (user) {
+    document.getElementById('user-info').style.display = 'flex';
+    document.getElementById('user-name-text').textContent = user.displayName || user.email;
+    await loadGame();
+  } else {
+    location.href = 'index.html';
+  }
+});
+
+function toggleUserMenu() {
+  const dropdown = document.getElementById('user-dropdown');
+  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+}
+
+async function logout() {
+  await signOut(auth);
+  location.href = 'index.html';
+}
+
+async function loadGame() {
+  try {
+    const docRef = doc(db, 'games', gameId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      alert('ゲームが見つかりません');
+      location.href = 'mypage.html';
+      return;
+    }
+    const game = { id: docSnap.id, ...docSnap.data() };
+    if (game.uid !== currentUser.uid) {
+      alert('このゲームを編集する権限がありません');
+      location.href = 'mypage.html';
+      return;
+    }
+
+    document.getElementById('loading-msg').style.display = 'none';
+    document.getElementById('edit-form').style.display = 'block';
+    document.getElementById('game-title').value = game.title || '';
+    document.getElementById('game-description').value = game.description || '';
+
+    const genres = game.genres || [game.genre];
+    currentGenre = genres;
+    document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
+      c.checked = genres.includes(c.value);
+    });
+    document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
+
+    if (game.thumbnail) {
+      thumbnailData = game.thumbnail;
+      const preview = document.getElementById('thumbnail-preview');
+      preview.src = game.thumbnail;
+      preview.style.display = 'block';
+    }
+
+    libraries = game.libraries || [];
+    scenes = game.story || {};
+    sceneCount = Object.keys(scenes).length;
+    currentMode = game.mode || 'simple';
+
+    document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
+
+    renderLibrary();
+    renderTree();
+  } catch (e) {
+    alert('読み込みエラー：' + e.message);
+  }
+}
+
+function updateGenreSelection() {
+  const checkboxes = document.querySelectorAll('#genre-checkboxes input[type="checkbox"]');
+  const checked = Array.from(checkboxes).filter(c => c.checked);
+  if (checked.length > 3) {
+    event.target.checked = false;
+    alert('ジャンルは3つまで選択できます');
+    return;
+  }
+  currentGenre = checked.map(c => c.value);
+  document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
+}
+
+function previewThumbnail(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    thumbnailData = e.target.result;
+    const preview = document.getElementById('thumbnail-preview');
+    preview.src = thumbnailData;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function addScene() {
+  sceneCount++;
+  const id = 'scene' + sceneCount;
+  scenes[id] = { id, title: '', text: '', buttons: [], elements: [] };
+  renderTree();
+  return id;
+}
+
+function deleteScene(sceneId) {
+  if (Object.keys(scenes).length <= 1) {
+    alert('最低1つのシーンが必要です');
+    return;
+  }
+  delete scenes[sceneId];
+  renderTree();
+}
+
+function addButton(sceneId) {
+  const scene = scenes[sceneId];
+  const label = ALPHABET[scene.buttons.length];
+  if (!label) { alert('ボタンはZまで追加できます'); return; }
+  const nextId = addScene();
+  scene.buttons.push({
+    label,
+    color: '#00c896',
+    next: nextId,
+    flagGive: '',
+    ifCondition: { type: 'none', tag: '', diceMin: 1 },
+    libEffect: { libId: '', change: 0, branchMin: '', branchMinScene: '', branchElseScene: '' },
+    diceFlag: { libId: '', min: 1, successFlag: '', failFlag: '' }
+  });
+  renderTree();
+}
+
+function deleteButton(sceneId, btnIndex) {
+  scenes[sceneId].buttons.splice(btnIndex, 1);
+  renderTree();
+}
+
+function updateButtonColor(sceneId, btnIndex, color) {
+  scenes[sceneId].buttons[btnIndex].color = color;
+  renderTree();
+}
+
+function updateSceneText(sceneId, value) {
+  scenes[sceneId].text = value;
+}
+
+function updateSceneTitle(sceneId, value) {
+  scenes[sceneId].title = value;
+}
+
+function addLibrary(type) {
+  const lib = { type, id: 'lib' + Date.now() };
+
+  if (type === 'affection') {
+    const name = prompt('好感度の名前を入力（例：アリス 好感度）');
+    if (!name) return;
+    const max = prompt('ハートの数を入力（例：5）');
+    if (!max) return;
+    lib.name = name;
+    lib.max = parseInt(max);
+    lib.value = 0;
+  } else if (type === 'dice') {
+    const faces = prompt('ダイスの面数を入力（4/6/8/10/12/20/100）');
+    if (!faces) return;
+    const count = prompt('一度に振る数を入力（例：1 または 2）');
+    if (!count) return;
+    lib.faces = parseInt(faces);
+    lib.count = parseInt(count);
+    lib.name = count + 'd' + faces;
+    lib.result = null;
+  } else if (type === 'saikoro') {
+    const count = prompt('さいころの個数を入力（1〜6）');
+    if (!count) return;
+    const c = Math.min(6, Math.max(1, parseInt(count)));
+    lib.count = c;
+    lib.faces = 6;
+    lib.name = c + '個のさいころ';
+    lib.results = [];
+  } else if (type === 'san') {
+    const max = prompt('SAN値の最大値を入力（例：100）');
+    if (!max) return;
+    lib.name = 'SAN値';
+    lib.max = parseInt(max);
+    lib.value = parseInt(max);
+  } else if (type === 'counter') {
+    const name = prompt('カウンターの名前を入力（例：撃破数）');
+    if (!name) return;
+    const init = prompt('初期値を入力（例：0）');
+    if (init === null) return;
+    lib.name = name;
+    lib.value = parseInt(init);
+  } else if (type === 'money') {
+    const name = prompt('名前を入力（例：所持金）');
+    if (!name) return;
+    const unit = prompt('単位を入力（例：G、円、ゴールド）');
+    if (!unit) return;
+    const init = prompt('初期値を入力（例：100）');
+    if (init === null) return;
+    lib.name = name;
+    lib.unit = unit;
+    lib.value = parseInt(init);
+  } else if (type === 'time') {
+    const name = prompt('名前を入力（例：日数、時間）');
+    if (!name) return;
+    const unit = prompt('単位を入力（例：日目、時間目）');
+    if (!unit) return;
+    const init = prompt('初期値を入力（例：1）');
+    if (init === null) return;
+    lib.name = name;
+    lib.unit = unit;
+    lib.value = parseInt(init);
+  } else if (type === 'flag') {
+    const name = prompt('フラグの名前を入力（例：鍵を持っている）');
+    if (!name) return;
+    lib.name = name;
+    lib.value = false;
+  } else if (type === 'status') {
+    const name = prompt('状態の名前を入力（例：天気）');
+    if (!name) return;
+    const options = prompt('状態の選択肢をカンマ区切りで入力（例：晴れ,雨,雪）');
+    if (!options) return;
+    lib.name = name;
+    lib.options = options.split(',');
+    lib.value = lib.options[0];
+  }
+
+  libraries.push(lib);
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const list = document.getElementById('library-list');
+  list.innerHTML = '';
+  libraries.forEach((lib, i) => {
+    const div = document.createElement('div');
+    div.className = 'lib-item';
+    let preview = '';
+    if (lib.type === 'affection') {
+      preview = lib.name + ' ' + '♡'.repeat(lib.max);
+    } else if (lib.type === 'dice') {
+      preview = lib.name;
+    } else if (lib.type === 'saikoro') {
+      preview = lib.name;
+    } else if (lib.type === 'san') {
+      preview = 'SAN値 ' + lib.value + ' / ' + lib.max;
+    } else if (lib.type === 'counter') {
+      preview = lib.name + ' ' + lib.value;
+    } else if (lib.type === 'money') {
+      preview = lib.name + ' ' + lib.value + lib.unit;
+    } else if (lib.type === 'time') {
+      preview = lib.name + ' ' + lib.value + lib.unit;
+    } else if (lib.type === 'flag') {
+      preview = lib.name + ' OFF';
+    } else if (lib.type === 'status') {
+      preview = lib.name + ' ' + lib.value;
+    }
+    div.innerHTML = '<span class="lib-preview">' + preview + '</span>' +
+      '<button class="delete-btn" onclick="deleteLibrary(' + i + ')">✕</button>';
+    list.appendChild(div);
+  });
+}
+
+function deleteLibrary(index) {
+  libraries.splice(index, 1);
+  renderLibrary();
+}
+
+function getSceneOptions() {
+  return Object.keys(scenes).map(id =>
+    '<option value="' + id + '">' + id + (scenes[id].title ? ' (' + scenes[id].title + ')' : '') + '</option>'
+  ).join('');
+}
+
+function getLibOptions() {
+  return '<option value="">なし</option>' +
+    libraries.map(lib =>
+      '<option value="' + lib.id + '">' + lib.name + '</option>'
+    ).join('');
+}
+
+function getDiceLibOptions() {
+  return '<option value="">なし</option>' +
+    libraries.filter(lib => lib.type === 'dice' || lib.type === 'saikoro').map(lib =>
+      '<option value="' + lib.id + '">' + lib.name + '</option>'
+    ).join('');
+}
+
+function renderTree() {
+  const tree = document.getElementById('scene-tree');
+  tree.innerHTML = '';
+  Object.values(scenes).forEach(scene => {
+    tree.appendChild(createSceneCard(scene));
+  });
+}
+
+function createSceneCard(scene) {
+  const card = document.createElement('div');
+  card.className = 'scene-card';
+  card.id = 'card-' + scene.id;
+
+  if (currentMode === 'simple') {
+    let buttonsHTML = scene.buttons.map((btn, i) => {
+      const sceneOpts = Object.keys(scenes).map(id =>
+        '<option value="' + id + '"' + (btn.next === id ? ' selected' : '') + '>' +
+        id + (scenes[id].title ? ' (' + scenes[id].title + ')' : '') + '</option>'
+      ).join('');
+      return '<div class="button-row">' +
+        '<span class="btn-label" style="background:#00c896">【' + btn.label + '】</span>' +
+        '<span class="btn-arrow">→</span>' +
+        '<span class="btn-option-label" style="color:#00a878;font-weight:700;">飛び先：</span>' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].next = this.value">' + sceneOpts + '</select>' +
+        '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
+        '</div>';
+    }).join('');
+
+    card.innerHTML =
+      '<div class="scene-header">' +
+      '<span class="scene-label">' + scene.id + '</span>' +
+      '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
+      '<button class="delete-scene-btn" onclick="deleteScene(\'' + scene.id + '\')">✕</button>' +
+      '</div>' +
+      '<textarea placeholder="このシーンの文章を入力..." oninput="updateSceneText(\'' + scene.id + '\', this.value)">' + scene.text + '</textarea>' +
+      '<div class="simple-choices-label">このシーンの選択肢は？</div>' +
+      '<div class="buttons-list">' + buttonsHTML + '</div>' +
+      '<div class="scene-actions">' +
+      '<button class="add-btn" onclick="addButton(\'' + scene.id + '\')">＋ 選択肢を追加</button>' +
+      '<button class="add-btn" onclick="addScene()">＋ シーン追加</button>' +
+      '</div>';
+  } else {
+    const libNames = libraries.map(l => '{' + l.name + '}').join('　');
+    const hintText = libraries.length > 0
+      ? '文章に { ライブラリ名 } と書くと値が表示されます。例：' + libNames
+      : '普通モードでは { ライブラリ名 } と書くと値が表示されます';
+
+    let buttonsHTML = scene.buttons.map((btn, i) => {
+      const ifOptions =
+        '<option value="none"' + (btn.ifCondition.type === 'none' ? ' selected' : '') + '>条件なし</option>' +
+        '<option value="flag"' + (btn.ifCondition.type === 'flag' ? ' selected' : '') + '>タグを持っている</option>' +
+        '<option value="dice"' + (btn.ifCondition.type === 'dice' ? ' selected' : '') + '>ダイス結果が○以上</option>';
+      const sceneOpts = getSceneOptions();
+      const libOpts = getLibOptions();
+      const diceOpts = getDiceLibOptions();
+
+      return '<div class="btn-block">' +
+        '<div class="button-row">' +
+        '<span class="btn-label" style="background:' + btn.color + '">【' + btn.label + '】</span>' +
+        '<span class="btn-arrow">→</span>' +
+        '<span class="btn-next">' + btn.next + '</span>' +
+        '<div class="color-palette">' +
+        palette.map(c =>
+          '<span class="palette-dot' + (btn.color === c ? ' selected' : '') + '" style="background:' + c + '" onclick="updateButtonColor(\'' + scene.id + '\', ' + i + ', \'' + c + '\')"></span>'
+        ).join('') +
+        '</div>' +
+        '<input type="color" value="' + btn.color + '" onchange="updateButtonColor(\'' + scene.id + '\', ' + i + ', this.value)">' +
+        '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
+        '</div>' +
+        '<div class="btn-options">' +
+        '<div class="btn-section-title">フラグ付与</div>' +
+        '<div class="btn-option-row">' +
+        '<span class="btn-option-label">タグ名：</span>' +
+        '<input type="text" class="btn-option-input" placeholder="例：鍵" value="' + (btn.flagGive || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].flagGive = this.value">' +
+        '</div>' +
+        '<div class="btn-section-title">ライブラリ効果</div>' +
+        '<div class="btn-option-row">' +
+        '<span class="btn-option-label">対象：</span>' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.libId = this.value">' + libOpts + '</select>' +
+        '<span class="btn-option-label">変化：</span>' +
+        '<input type="number" class="btn-option-input-sm" value="' + (btn.libEffect.change || 0) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.change = parseInt(this.value)">' +
+        '</div>' +
+        '<div class="btn-section-title">IF条件</div>' +
+        '<div class="btn-option-row">' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifCondition.type = this.value; renderTree()">' + ifOptions + '</select>' +
+        (btn.ifCondition.type === 'flag' ? '<input type="text" class="btn-option-input" placeholder="必要なタグ名" value="' + (btn.ifCondition.tag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifCondition.tag = this.value">' : '') +
+        (btn.ifCondition.type === 'dice' ? '<input type="number" class="btn-option-input-sm" value="' + (btn.ifCondition.diceMin || 1) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifCondition.diceMin = parseInt(this.value)">' : '') +
+        '</div>' +
+        '</div>' +
+        '</div>';
+    }).join('');
+
+    card.innerHTML =
+      '<div class="scene-header">' +
+      '<span class="scene-label">' + scene.id + '</span>' +
+      '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
+      '<button class="delete-scene-btn" onclick="deleteScene(\'' + scene.id + '\')">✕</button>' +
+      '</div>' +
+      '<textarea placeholder="ここにシーンのテキストを入力..." oninput="updateSceneText(\'' + scene.id + '\', this.value)">' + scene.text + '</textarea>' +
+      '<div class="lib-hint">' + hintText + '</div>' +
+      '<div class="buttons-list">' + buttonsHTML + '</div>' +
+      '<div class="scene-actions">' +
+      '<button class="add-btn" onclick="addButton(\'' + scene.id + '\')">＋ ボタン追加</button>' +
+      '<button class="add-btn" onclick="addScene()">＋ シーン追加</button>' +
+      '</div>';
+  }
+
+  return card;
+}
+
+async function saveGame() {
+  const title = document.getElementById('game-title').value;
+  const description = document.getElementById('game-description').value;
+
+  if (!title) { alert('タイトルを入力してください'); return; }
+  if (currentGenre.length === 0) { alert('ジャンルを1つ以上選択してください'); return; }
+  if (Object.keys(scenes).length === 0) { alert('シーンを追加してください'); return; }
+
+  try {
+    await updateDoc(doc(db, 'games', gameId), {
+      title,
+      genres: currentGenre,
+      genre: currentGenre[0],
+      description,
+      thumbnail: thumbnailData || '',
+      libraries: JSON.parse(JSON.stringify(libraries)),
+      story: JSON.parse(JSON.stringify(scenes))
+    });
+    alert('保存しました！');
+    location.href = 'mypage.html';
+  } catch (e) {
+    alert('保存に失敗しました：' + e.message);
+  }
+}
+
+async function deleteThisGame() {
+  const title = document.getElementById('game-title').value;
+  if (!confirm('「' + title + '」を本当に削除しますか？\nこの操作は取り消せません。')) return;
+  try {
+    await deleteDoc(doc(db, 'games', gameId));
+    alert('削除しました');
+    location.href = 'mypage.html';
+  } catch (e) {
+    alert('削除に失敗しました：' + e.message);
+  }
+}
+
+window.toggleUserMenu = toggleUserMenu;
+window.logout = logout;
+window.addScene = addScene;
+window.deleteScene = deleteScene;
+window.addButton = addButton;
+window.deleteButton = deleteButton;
+window.updateButtonColor = updateButtonColor;
+window.updateSceneText = updateSceneText;
+window.updateSceneTitle = updateSceneTitle;
+window.addLibrary = addLibrary;
+window.deleteLibrary = deleteLibrary;
+window.updateGenreSelection = updateGenreSelection;
+window.previewThumbnail = previewThumbnail;
+window.saveGame = saveGame;
+window.deleteThisGame = deleteThisGame;
+window.scenes = scenes;
+window.renderTree = renderTree;

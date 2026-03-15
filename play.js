@@ -1,13 +1,20 @@
 import { db } from './firebase.js';
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, getDoc, updateDoc, increment, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const params = new URLSearchParams(window.location.search);
 const gameId = params.get('id');
+const auth = getAuth();
 
 let game = null;
 let state = [];
 let flags = [];
 let lastDiceResult = null;
+let currentUser = null;
+
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+});
 
 async function init() {
   try {
@@ -20,6 +27,18 @@ async function init() {
     game = { id: docSnap.id, ...docSnap.data() };
     document.getElementById('game-title-display').textContent = game.title;
     state = JSON.parse(JSON.stringify(game.libraries || []));
+
+    await updateDoc(docRef, { playCount: increment(1) });
+
+    if (currentUser) {
+      await addDoc(collection(db, 'playHistory'), {
+        uid: currentUser.uid,
+        gameId: game.id,
+        gameTitle: game.title,
+        playedAt: new Date().toISOString()
+      });
+    }
+
     showScene('scene1');
   } catch (e) {
     document.getElementById('scene-text').textContent = 'エラー：' + e.message;

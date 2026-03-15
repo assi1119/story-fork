@@ -9,12 +9,20 @@
 <body>
 
   <header>
-    <h1>Story Fork</h1>
+    <div class="header-logo">
+      <h1>Story Fork</h1>
+      <span class="header-tagline">分岐ゲームをつくろう・あそぼう</span>
+    </div>
     <div class="header-right">
       <div id="user-info" style="display:none">
         <div class="user-menu">
-          <span id="user-name" onclick="toggleUserMenu()"></span>
+          <span id="user-name" onclick="toggleUserMenu()">
+            <span class="user-avatar"></span>
+            <span id="user-name-text"></span>
+            <span class="user-caret">▾</span>
+          </span>
           <div id="user-dropdown" style="display:none">
+            <a href="mypage.html">マイページ</a>
             <button onclick="logout()">ログアウト</button>
           </div>
         </div>
@@ -34,35 +42,28 @@
     <div class="modal">
       <h2>ログイン / 新規登録</h2>
       <p class="modal-hint">ユーザー名は製作者名として表示されます。わかりやすい名前をつけてください！</p>
-
       <button class="google-login-btn" onclick="loginWithGoogle()">Googleでログイン</button>
-
       <div class="modal-divider">または</div>
-
       <div id="modal-tabs">
         <button class="modal-tab active" onclick="switchModalTab('login')">ログイン</button>
         <button class="modal-tab" onclick="switchModalTab('register')">新規登録</button>
       </div>
-
       <div id="login-form">
         <input type="email" id="login-email" placeholder="メールアドレス">
         <input type="password" id="login-password" placeholder="パスワード">
         <button class="submit-btn" onclick="loginWithEmail()">ログイン</button>
       </div>
-
       <div id="register-form" style="display:none">
         <input type="text" id="register-username" placeholder="ユーザー名（製作者名として表示されます）">
         <input type="email" id="register-email" placeholder="メールアドレス">
         <input type="password" id="register-password" placeholder="パスワード（6文字以上）">
         <button class="submit-btn" onclick="registerWithEmail()">登録する</button>
       </div>
-
       <button class="modal-close" onclick="hideLoginModal()">✕ 閉じる</button>
     </div>
   </div>
 
   <main>
-
     <div id="play-tab">
       <div id="search-bar">
         <input type="text" id="search-input" placeholder="タイトル・作者名・ジャンルで検索..." oninput="searchGames()">
@@ -115,20 +116,21 @@
             <input type="text" id="game-title" placeholder="ゲームのタイトル">
           </div>
           <div class="form-row">
-            <label>ジャンル</label>
-            <select id="game-genre" onchange="updateGenre()">
-              <option value="RPG">RPG</option>
-              <option value="TRPG">TRPG</option>
-              <option value="RP">RP</option>
-              <option value="料理">料理</option>
-              <option value="ラブストーリー">ラブストーリー</option>
-              <option value="ホラー">ホラー</option>
-              <option value="推理・ミステリー">推理・ミステリー</option>
-              <option value="コメディ">コメディ</option>
-              <option value="選択">選択</option>
-              <option value="診断">診断</option>
-              <option value="その他">その他</option>
-            </select>
+            <label>ジャンル（3つまで選択）</label>
+            <div id="genre-checkboxes" class="genre-checkbox-grid">
+              <label class="genre-check"><input type="checkbox" value="RPG" onchange="updateGenreSelection()">RPG</label>
+              <label class="genre-check"><input type="checkbox" value="TRPG" onchange="updateGenreSelection()">TRPG</label>
+              <label class="genre-check"><input type="checkbox" value="RP" onchange="updateGenreSelection()">RP</label>
+              <label class="genre-check"><input type="checkbox" value="料理" onchange="updateGenreSelection()">料理</label>
+              <label class="genre-check"><input type="checkbox" value="ラブストーリー" onchange="updateGenreSelection()">ラブストーリー</label>
+              <label class="genre-check"><input type="checkbox" value="ホラー" onchange="updateGenreSelection()">ホラー</label>
+              <label class="genre-check"><input type="checkbox" value="推理・ミステリー" onchange="updateGenreSelection()">推理・ミステリー</label>
+              <label class="genre-check"><input type="checkbox" value="コメディ" onchange="updateGenreSelection()">コメディ</label>
+              <label class="genre-check"><input type="checkbox" value="選択" onchange="updateGenreSelection()">選択</label>
+              <label class="genre-check"><input type="checkbox" value="診断" onchange="updateGenreSelection()">診断</label>
+              <label class="genre-check"><input type="checkbox" value="その他" onchange="updateGenreSelection()">その他</label>
+            </div>
+            <p id="genre-count" class="genre-count">0 / 3 選択中</p>
           </div>
           <div class="form-row">
             <label>説明</label>
@@ -169,7 +171,6 @@
         <button id="upload-btn" onclick="uploadGame()">アップロード</button>
       </div>
     </div>
-
   </main>
 
   <script type="module" src="index.js"></script>

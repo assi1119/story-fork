@@ -1,9 +1,10 @@
 import { db, auth, googleProvider, collection, addDoc, getDocs, query, orderBy, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from './firebase.js';
+import { doc, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 let scenes = {};
 let sceneCount = 0;
 let currentMode = 'simple';
-let currentGenre = 'その他';
+let currentGenre = [];
 let libraries = [];
 let currentFilterGenre = 'all';
 let thumbnailData = null;
@@ -16,7 +17,7 @@ onAuthStateChanged(auth, user => {
   if (user) {
     document.getElementById('user-info').style.display = 'flex';
     document.getElementById('login-btns').style.display = 'none';
-    document.getElementById('user-name').textContent = user.displayName || user.email;
+    document.getElementById('user-name-text').textContent = user.displayName || user.email;
     document.getElementById('game-author').value = user.displayName || user.email;
     document.getElementById('not-logged-in').style.display = 'none';
     document.getElementById('mode-select').style.display = 'block';
@@ -27,6 +28,19 @@ onAuthStateChanged(auth, user => {
     document.getElementById('not-logged-in').style.display = 'block';
     document.getElementById('mode-select').style.display = 'none';
     document.getElementById('game-form').style.display = 'none';
+  }
+});
+
+function toggleUserMenu() {
+  const dropdown = document.getElementById('user-dropdown');
+  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+}
+
+document.addEventListener('click', e => {
+  const menu = document.getElementById('user-name');
+  const dropdown = document.getElementById('user-dropdown');
+  if (dropdown && menu && !menu.contains(e.target)) {
+    dropdown.style.display = 'none';
   }
 });
 
@@ -52,22 +66,11 @@ async function loginWithGoogle() {
     if (!user.displayName) {
       const name = prompt('ユーザー名を入力してください（製作者名として表示されます）');
       if (name) await updateProfile(user, { displayName: name });
-    } else {
-      const change = confirm('ユーザー名を変更しますか？（現在：' + user.displayName + '）');
-      if (change) {
-        const name = prompt('新しいユーザー名を入力してください');
-        if (name) await updateProfile(user, { displayName: name });
-      }
     }
     hideLoginModal();
   } catch (e) {
     alert('Googleログインに失敗しました：' + e.message);
   }
-}
-
-function toggleUserMenu() {
-  const dropdown = document.getElementById('user-dropdown');
-  dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
 async function loginWithEmail() {
@@ -124,10 +127,23 @@ function resetCreateForm() {
   sceneCount = 0;
   libraries = [];
   thumbnailData = null;
+  currentGenre = [];
 }
 
 function backToModeSelect() {
   resetCreateForm();
+}
+
+function updateGenreSelection() {
+  const checkboxes = document.querySelectorAll('#genre-checkboxes input[type="checkbox"]');
+  const checked = Array.from(checkboxes).filter(c => c.checked);
+  if (checked.length > 3) {
+    event.target.checked = false;
+    alert('ジャンルは3つまで選択できます');
+    return;
+  }
+  currentGenre = checked.map(c => c.value);
+  document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
 }
 
 function startCreate(mode) {
@@ -136,6 +152,7 @@ function startCreate(mode) {
   scenes = {};
   sceneCount = 0;
   thumbnailData = null;
+  currentGenre = [];
   document.getElementById('mode-select').style.display = 'none';
   document.getElementById('game-form').style.display = 'block';
   document.getElementById('library-list').innerHTML = '';
@@ -146,11 +163,12 @@ function startCreate(mode) {
   document.getElementById('game-description').value = '';
   document.getElementById('game-author').value = currentUser ? (currentUser.displayName || currentUser.email) : '';
   document.getElementById('library-panel').style.display = mode === 'simple' ? 'none' : 'block';
+  document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => c.checked = false);
+  document.getElementById('genre-count').textContent = '0 / 3 選択中';
   addScene();
 }
 
 function updateGenre() {
-  currentGenre = document.getElementById('game-genre').value;
   renderTree();
 }
 
@@ -505,16 +523,17 @@ function createSceneCard(scene) {
 async function uploadGame() {
   if (!currentUser) { alert('ゲームを作るにはログインが必要です'); return; }
   const title = document.getElementById('game-title').value;
-  const genre = document.getElementById('game-genre').value;
   const description = document.getElementById('game-description').value;
   const author = currentUser.displayName || currentUser.email;
 
   if (!title) { alert('タイトルを入力してください'); return; }
+  if (currentGenre.length === 0) { alert('ジャンルを1つ以上選択してください'); return; }
   if (Object.keys(scenes).length === 0) { alert('シーンを追加してください'); return; }
 
   const game = {
     title,
-    genre,
+    genres: currentGenre,
+    genre: currentGenre[0],
     description,
     author,
     uid: currentUser.uid,
@@ -541,10 +560,12 @@ function renderGameCard(game) {
   const thumb = game.thumbnail
     ? '<img src="' + game.thumbnail + '" class="game-thumb" alt="サムネイル">'
     : '<div class="game-thumb-placeholder"></div>';
+  const genres = game.genres || [game.genre];
+  const genreTags = genres.map(g => '<span class="game-genre-tag">' + g + '</span>').join('');
   card.innerHTML =
     thumb +
     '<div class="game-card-body">' +
-    '<div class="game-genre-tag">' + game.genre + '</div>' +
+    '<div class="genre-tags-row">' + genreTags + '</div>' +
     '<h2>' + game.title + '</h2>' +
     '<p>' + game.description + '</p>' +
     '<p class="game-author">製作者：' + (game.author || '不明') + '</p>' +
@@ -595,11 +616,12 @@ function applyFilter() {
   list.innerHTML = '';
 
   const filtered = games.filter(game => {
-    const matchGenre = currentFilterGenre === 'all' || game.genre === currentFilterGenre;
+    const genres = game.genres || [game.genre];
+    const matchGenre = currentFilterGenre === 'all' || genres.includes(currentFilterGenre);
     const matchSearch = !q ||
       game.title.toLowerCase().includes(q) ||
       (game.author || '').toLowerCase().includes(q) ||
-      game.genre.toLowerCase().includes(q);
+      genres.some(g => g.toLowerCase().includes(q));
     return matchGenre && matchSearch;
   });
 
@@ -614,6 +636,7 @@ window.showTab = showTab;
 window.startCreate = startCreate;
 window.backToModeSelect = backToModeSelect;
 window.updateGenre = updateGenre;
+window.updateGenreSelection = updateGenreSelection;
 window.previewThumbnail = previewThumbnail;
 window.addScene = addScene;
 window.deleteScene = deleteScene;
@@ -636,5 +659,6 @@ window.loginWithGoogle = loginWithGoogle;
 window.loginWithEmail = loginWithEmail;
 window.registerWithEmail = registerWithEmail;
 window.logout = logout;
+window.toggleUserMenu = toggleUserMenu;
 
 loadGames();
