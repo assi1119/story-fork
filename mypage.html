@@ -19,7 +19,7 @@
       <div id="user-info" style="display:none">
         <div class="user-menu">
           <span id="user-name" onclick="toggleUserMenu()">
-            <span class="user-avatar"></span>
+            <span class="user-at">@</span>
             <span id="user-name-text"></span>
             <span class="user-caret">▾</span>
           </span>
@@ -29,7 +29,7 @@
           </div>
         </div>
       </div>
-      <div id="login-btns">
+      <div id="login-btns" style="display:none">
         <button class="login-btn" onclick="location.href='index.html'">ログイン</button>
       </div>
       <nav>
@@ -50,8 +50,15 @@
 
       <div id="mypage-main" style="display:none">
         <div class="mypage-header">
-          <div class="mypage-avatar"></div>
-          <div>
+          <div class="mypage-avatar-wrap">
+            <img id="mypage-avatar-img" src="" alt="" style="display:none">
+            <div id="mypage-avatar-placeholder" class="mypage-avatar"></div>
+            <label class="avatar-upload-btn">
+              写真を変更
+              <input type="file" id="avatar-upload" accept="image/*" onchange="uploadAvatar(this)" style="display:none">
+            </label>
+          </div>
+          <div class="mypage-user-info">
             <h2 id="mypage-username"></h2>
             <p id="mypage-at-name" class="mypage-at-name"></p>
             <p id="mypage-email" class="mypage-email"></p>
@@ -61,7 +68,7 @@
             </div>
           </div>
           <button class="footer-logout-btn" onclick="logout()">ログアウト</button>
-        </div>>
+        </div>
 
         <div class="mypage-section">
           <h3>自分の作品</h3>

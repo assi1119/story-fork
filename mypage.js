@@ -13,8 +13,7 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('mypage-main').style.display = 'block';
     document.getElementById('mypage-username').textContent = user.displayName || 'ユーザー';
     document.getElementById('mypage-email').textContent = user.email;
-
-    await loadUsername(user.uid);
+    await loadUserData(user.uid);
     await loadMyGames();
     await loadPlayHistory();
   } else {
@@ -25,14 +24,24 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-async function loadUsername(uid) {
+async function loadUserData(uid) {
   try {
     const docSnap = await getDoc(doc(db, 'users', uid));
-    if (docSnap.exists() && docSnap.data().username) {
-      document.getElementById('mypage-at-name').textContent = '@' + docSnap.data().username;
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (data.username) {
+        document.getElementById('mypage-at-name').textContent = '@' + data.username;
+        document.getElementById('username-form').style.display = 'none';
+      } else {
+        document.getElementById('username-form').style.display = 'flex';
+      }
+      if (data.avatar) {
+        document.getElementById('mypage-avatar-img').src = data.avatar;
+        document.getElementById('mypage-avatar-img').style.display = 'block';
+        document.getElementById('mypage-avatar-placeholder').style.display = 'none';
+      }
     } else {
-      document.getElementById('mypage-at-name').textContent = '';
-      document.getElementById('username-form').style.display = 'block';
+      document.getElementById('username-form').style.display = 'flex';
     }
   } catch (e) {
     console.log(e);
@@ -43,13 +52,36 @@ async function saveUsername() {
   const username = document.getElementById('username-input').value.trim();
   if (!username) { alert('ユーザー名を入力してください'); return; }
   try {
-    await setDoc(doc(db, 'users', currentUser.uid), { username });
+    const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
+    const existing = docSnap.exists() ? docSnap.data() : {};
+    await setDoc(doc(db, 'users', currentUser.uid), { ...existing, username });
     document.getElementById('mypage-at-name').textContent = '@' + username;
     document.getElementById('username-form').style.display = 'none';
     alert('ユーザー名を設定しました！');
   } catch (e) {
     alert('エラー：' + e.message);
   }
+}
+
+async function uploadAvatar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const avatarData = e.target.result;
+    try {
+      const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
+      const existing = docSnap.exists() ? docSnap.data() : {};
+      await setDoc(doc(db, 'users', currentUser.uid), { ...existing, avatar: avatarData });
+      document.getElementById('mypage-avatar-img').src = avatarData;
+      document.getElementById('mypage-avatar-img').style.display = 'block';
+      document.getElementById('mypage-avatar-placeholder').style.display = 'none';
+      alert('アイコンを更新しました！');
+    } catch (e) {
+      alert('エラー：' + e.message);
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 function toggleUserMenu() {
@@ -69,7 +101,7 @@ async function loadMyGames() {
     const q = query(collection(db, 'games'), where('uid', '==', currentUser.uid));
     const snapshot = await getDocs(q);
     const games = [];
-    snapshot.forEach(doc => games.push({ id: doc.id, ...doc.data() }));
+    snapshot.forEach(d => games.push({ id: d.id, ...d.data() }));
     games.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     list.innerHTML = '';
     if (games.length === 0) {
@@ -120,7 +152,7 @@ async function loadPlayHistory() {
     const q = query(collection(db, 'playHistory'), where('uid', '==', currentUser.uid));
     const snapshot = await getDocs(q);
     const history = [];
-    snapshot.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+    snapshot.forEach(d => history.push({ id: d.id, ...d.data() }));
     history.sort((a, b) => new Date(b.playedAt) - new Date(a.playedAt));
     list.innerHTML = '';
     if (history.length === 0) {
@@ -145,3 +177,4 @@ window.toggleUserMenu = toggleUserMenu;
 window.logout = logout;
 window.deleteGame = deleteGame;
 window.saveUsername = saveUsername;
+window.uploadAvatar = uploadAvatar;

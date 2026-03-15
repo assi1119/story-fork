@@ -1392,3 +1392,71 @@ footer {
   font-size: 13px;
   font-family: 'メイリオ', sans-serif;
 }
+
+.mypage-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mypage-avatar {
+  width: 80px;
+  height: 80px;
+  background: #00c896;
+  border-radius: 50%;
+}
+
+#mypage-avatar-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #b2ead8;
+}
+
+.avatar-upload-btn {
+  font-size: 11px;
+  color: #00a878;
+  cursor: pointer;
+  background: #e6faf3;
+  border: 2px solid #b2ead8;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-family: 'メイリオ', sans-serif;
+  font-weight: 700;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.avatar-upload-btn:hover {
+  background: #00c896;
+  color: #fff;
+  border-color: #00c896;
+}
+
+.mypage-user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#username-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#username-input {
+  padding: 6px 12px;
+  border: 2px solid #b2ead8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'メイリオ', sans-serif;
+  background: #fff;
+  color: #1a1a1a;
+}
