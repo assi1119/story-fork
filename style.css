@@ -1734,3 +1734,161 @@ footer {
   color: #00a878;
   text-align: center;
 }
+
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #00c896;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.hamburger-btn:hover {
+  background: #e6faf3;
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  right: -280px;
+  width: 280px;
+  height: 100%;
+  background: #fff;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+  z-index: 1000;
+  transition: right 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-menu.open {
+  right: 0;
+}
+
+.side-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.3);
+  z-index: 999;
+  display: none;
+}
+
+.side-overlay.open {
+  display: block;
+}
+
+.side-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 2px solid #e0f5ee;
+}
+
+.side-menu-header span {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.side-menu-header button {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #aaa;
+  transition: color 0.2s;
+}
+
+.side-menu-header button:hover {
+  color: #00c896;
+}
+
+.side-menu-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.side-menu-item {
+  display: block;
+  background: transparent;
+  border: none;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  font-family: 'メイリオ', sans-serif;
+  transition: background 0.2s;
+}
+
+.side-menu-item:hover {
+  background: #e6faf3;
+  color: #00c896;
+}
+
+.side-menu-item.active {
+  background: #e6faf3;
+  color: #00c896;
+}
+
+.notice-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.notice-admin-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.notice-edit-btn {
+  background: #e6faf3;
+  color: #00a878;
+  border: 2px solid #b2ead8;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.notice-edit-btn:hover {
+  background: #00c896;
+  color: #fff;
+  border-color: #00c896;
+}
+
+.notice-delete-btn {
+  background: transparent;
+  color: #ccc;
+  border: 2px solid #eee;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.notice-delete-btn:hover {
+  background: #fee;
+  color: #e94560;
+  border-color: #e94560;
+}

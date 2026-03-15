@@ -31,12 +31,22 @@
       <div id="login-btns">
         <button class="login-btn" onclick="showLoginModal()">ログイン</button>
       </div>
-      <nav>
-        <button class="tab-btn active" onclick="showTab('play')">遊ぶ</button>
-        <button class="tab-btn" onclick="showTab('create')">作る</button>
-      </nav>
+      <button class="hamburger-btn" onclick="toggleSideMenu()">☰</button>
     </div>
   </header>
+
+  <div id="side-menu" class="side-menu">
+    <div class="side-menu-header">
+      <span>メニュー</span>
+      <button onclick="toggleSideMenu()">✕</button>
+    </div>
+    <div class="side-menu-body">
+      <button class="side-menu-item active" onclick="showTab('play'); toggleSideMenu()">遊ぶ</button>
+      <button class="side-menu-item" onclick="showTab('create'); toggleSideMenu()">作る</button>
+      <a href="mypage.html" class="side-menu-item">マイページ</a>
+    </div>
+  </div>
+  <div id="side-overlay" class="side-overlay" onclick="toggleSideMenu()"></div>
 
   <div id="login-modal" style="display:none">
     <div class="modal-overlay" onclick="hideLoginModal()"></div>
@@ -114,7 +124,6 @@
 
       <div id="game-form" style="display:none">
         <button class="back-form-btn" onclick="backToModeSelect()">← 選択画面に戻る</button>
-
         <div id="form-header">
           <div class="form-row">
             <label>タイトル</label>
@@ -178,7 +187,6 @@
             <button onclick="addLibrary('result')">結果表示</button>
             <button onclick="addLibrary('character')">キャラクター</button>
           </div>
-
           <div class="custom-var-section">
             <h4>オリジナル変数</h4>
             <p class="lib-hint">シナリオ限定の独自変数を作れます。{ 変数名 } でテキストに表示できます。</p>
@@ -195,7 +203,6 @@
         <button id="upload-btn" onclick="uploadGame()">アップロード</button>
       </div>
     </div>
-
   </main>
 
   <script type="module" src="index.js"></script>

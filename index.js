@@ -681,6 +681,44 @@ async function postNotice() {
   }
 }
 
+function toggleSideMenu() {
+  const menu = document.getElementById('side-menu');
+  const overlay = document.getElementById('side-overlay');
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    menu.classList.remove('open');
+    overlay.classList.remove('open');
+  } else {
+    menu.classList.add('open');
+    overlay.classList.add('open');
+  }
+}
+
+async function editNotice(noticeId, currentTitle, currentBody) {
+  const title = prompt('タイトルを編集', currentTitle);
+  if (!title) return;
+  const body = prompt('本文を編集', currentBody);
+  if (!body) return;
+  try {
+    await updateDoc(doc(db, 'notices', noticeId), { title, body });
+    alert('更新しました！');
+    loadNotices();
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
+async function deleteNotice(noticeId) {
+  if (!confirm('このお知らせを削除しますか？')) return;
+  try {
+    await deleteDoc(doc(db, 'notices', noticeId));
+    alert('削除しました！');
+    loadNotices();
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
 async function loadNotices() {
   const area = document.getElementById('notice-area');
   if (!area) return;
@@ -691,11 +729,19 @@ async function loadNotices() {
     snapshot.forEach(d => notices.push({ id: d.id, ...d.data() }));
     if (notices.length === 0) { area.style.display = 'none'; return; }
     area.style.display = 'block';
+    const isAdmin = currentUser && currentUser.uid === ADMIN_UID;
     area.innerHTML = notices.map(n =>
       '<div class="notice-item">' +
       '<div class="notice-title">' + n.title + '</div>' +
       '<div class="notice-body">' + n.body + '</div>' +
+      '<div class="notice-footer">' +
       '<div class="notice-date">' + new Date(n.createdAt).toLocaleDateString('ja-JP') + '</div>' +
+      (isAdmin ?
+        '<div class="notice-admin-btns">' +
+        '<button class="notice-edit-btn" onclick="editNotice(\'' + n.id + '\', \'' + n.title.replace(/'/g, "\\'") + '\', \'' + n.body.replace(/'/g, "\\'") + '\')">編集</button>' +
+        '<button class="notice-delete-btn" onclick="deleteNotice(\'' + n.id + '\')">削除</button>' +
+        '</div>' : '') +
+      '</div>' +
       '</div>'
     ).join('');
   } catch (e) {
@@ -811,5 +857,8 @@ window.removeFlagGive = removeFlagGive;
 window.addIfCondition = addIfCondition;
 window.removeIfCondition = removeIfCondition;
 window.postNotice = postNotice;
+window.toggleSideMenu = toggleSideMenu;
+window.editNotice = editNotice;
+window.deleteNotice = deleteNotice;
 
 loadGames();
