@@ -69,13 +69,14 @@ function resolveText(text) {
         ? lib.results.map(r => '[' + r + ']').join(' ') + '（合計:' + lib.results.reduce((a, b) => a + b, 0) + '）'
         : '（未振）';
     }
-    if (lib.type === 'dice') return lib.result !== null ? lib.result : '（未振）';
+    if (lib.type === 'dice') return lib.result !== null ? String(lib.result) : '（未振）';
     if (lib.type === 'money' || lib.type === 'time') return lib.value + (lib.unit || '');
     if (lib.type === 'hp' || lib.type === 'mp') return lib.value + '/' + lib.max;
     if (lib.type === 'flag') return lib.value ? 'ON' : 'OFF';
     if (lib.type === 'status') return lib.value;
-    if (lib.type === 'inventory') return lib.items ? lib.items.join('・') : '';
-    return lib.value !== undefined ? lib.value : match;
+    if (lib.type === 'inventory') return lib.items ? lib.items.join('・') : 'なし';
+    if (lib.type === 'character') return lib.charName;
+    return lib.value !== undefined ? String(lib.value) : match;
   });
 }
 
@@ -94,6 +95,20 @@ function renderStatus() {
   bar.innerHTML = '';
 
   state.forEach((lib, i) => {
+    if (lib.type === 'character') {
+      const charDiv = document.createElement('div');
+      charDiv.className = 'character-display';
+      if (lib.image) {
+        charDiv.innerHTML = '<img src="' + lib.image + '" class="char-img" alt="' + lib.charName + '">' +
+          '<div class="char-name">' + lib.charName + '</div>';
+      } else {
+        charDiv.innerHTML = '<div class="char-placeholder"></div>' +
+          '<div class="char-name">' + lib.charName + '</div>';
+      }
+      bar.appendChild(charDiv);
+      return;
+    }
+
     const div = document.createElement('div');
     div.className = 'status-item';
 
@@ -117,6 +132,11 @@ function renderStatus() {
       div.innerHTML = '<span class="status-name">' + lib.name + '</span>' +
         '<div class="status-bar-wrap"><div class="status-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
         '<span class="status-value">' + lib.value + '/' + lib.max + '</span>';
+    } else if (lib.type === 'san') {
+      const pct = Math.max(0, Math.min(100, (lib.value / lib.max) * 100));
+      div.innerHTML = '<span class="status-name">SAN値</span>' +
+        '<div class="status-bar-wrap"><div class="status-bar-fill" style="width:' + pct + '%;background:#7f77dd"></div></div>' +
+        '<span class="status-value">' + lib.value + '/' + lib.max + '</span>';
     } else if (lib.type === 'level') {
       div.innerHTML = '<span class="status-name">Lv.' + lib.value + '</span>';
     } else if (lib.type === 'exp') {
@@ -131,19 +151,18 @@ function renderStatus() {
       div.innerHTML = '<span class="status-name">スコア</span><span class="status-value">' + lib.value + '点</span>';
     } else if (lib.type === 'timer') {
       div.id = 'timer-' + i;
-      div.innerHTML = '<span class="status-name">残り時間</span><span class="status-value timer-value">' + (lib.remaining || lib.seconds) + '秒</span>';
-    } else if (lib.type === 'san') {
-      div.innerHTML = '<span class="status-name">SAN値</span><span class="status-value">' + lib.value + '/' + lib.max + '</span>';
+      div.innerHTML = '<span class="status-name">残り時間</span>' +
+        '<span class="status-value timer-value">' + (lib.remaining !== undefined ? lib.remaining : lib.seconds) + '秒</span>';
     } else if (lib.type === 'skill' || lib.type === 'charsheet') {
       div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + lib.value + '</span>';
-    } else if (lib.type === 'counter' || lib.type === 'money' || lib.type === 'time') {
-      div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + lib.value + (lib.unit || '') + '</span>';
     } else if (lib.type === 'flag') {
-      div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + (lib.value ? 'ON' : 'OFF') + '</span>';
+      div.innerHTML = '<span class="status-name">' + lib.name + '</span>' +
+        '<span class="status-value">' + (lib.value ? 'ON' : 'OFF') + '</span>';
     } else if (lib.type === 'status') {
       div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + lib.value + '</span>';
     } else {
-      div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + (lib.value !== undefined ? lib.value : '') + '</span>';
+      div.innerHTML = '<span class="status-name">' + lib.name + '</span>' +
+        '<span class="status-value">' + (lib.value !== undefined ? lib.value : '') + (lib.unit || '') + '</span>';
     }
     bar.appendChild(div);
   });
@@ -161,10 +180,12 @@ function startTimers() {
   const timerLibs = state.filter(l => l.type === 'timer');
   if (timerLibs.length === 0) return;
   timerInterval = setInterval(() => {
-    timerLibs.forEach((lib, i) => {
+    timerLibs.forEach(lib => {
+      if (lib.remaining === undefined) lib.remaining = lib.seconds;
       if (lib.remaining > 0) {
         lib.remaining--;
-        const el = document.getElementById('timer-' + state.indexOf(lib));
+        const idx = state.indexOf(lib);
+        const el = document.getElementById('timer-' + idx);
         if (el) el.querySelector('.timer-value').textContent = lib.remaining + '秒';
         if (lib.remaining === 0) clearInterval(timerInterval);
       }
@@ -213,16 +234,18 @@ function applyLibEffect(btn) {
   const change = btn.libEffect.change || 0;
   if (['affection', 'san', 'counter', 'money', 'time', 'hp', 'mp', 'exp', 'level', 'score', 'skill', 'charsheet'].includes(lib.type)) {
     lib.value = Math.max(0, (lib.value || 0) + change);
-    if (lib.type === 'exp' && lib.value >= lib.nextLevel) {
+    if (lib.type === 'exp' && lib.nextLevel && lib.value >= lib.nextLevel) {
       lib.value -= lib.nextLevel;
       const levelLib = state.find(l => l.type === 'level');
       if (levelLib) levelLib.value++;
     }
   }
-  if (btn.libEffect.branchMin !== '' && btn.libEffect.branchMin !== undefined) {
+  if (btn.libEffect.branchMin !== '' && btn.libEffect.branchMin !== undefined && btn.libEffect.branchMin !== null) {
     const min = parseInt(btn.libEffect.branchMin);
-    if (lib.value >= min && btn.libEffect.branchMinScene) return btn.libEffect.branchMinScene;
-    if (lib.value < min && btn.libEffect.branchElseScene) return btn.libEffect.branchElseScene;
+    if (!isNaN(min)) {
+      if (lib.value >= min && btn.libEffect.branchMinScene) return btn.libEffect.branchMinScene;
+      if (lib.value < min && btn.libEffect.branchElseScene) return btn.libEffect.branchElseScene;
+    }
   }
   return null;
 }
@@ -231,7 +254,9 @@ function applyVarEffect(btn) {
   if (!btn.varEffect || !btn.varEffect.varName) return;
   const varName = btn.varEffect.varName;
   if (customVarState[varName] !== undefined) {
-    customVarState[varName] += (btn.varEffect.change || 0);
+    if (typeof customVarState[varName] === 'number') {
+      customVarState[varName] += (btn.varEffect.change || 0);
+    }
   }
 }
 
@@ -258,7 +283,7 @@ function renderButtons(scene) {
     button.style.background = btn.color;
     button.onclick = () => {
       if (timerInterval) clearInterval(timerInterval);
-      const flagGives = btn.flagGive || (btn.flagGive ? [btn.flagGive] : []);
+      const flagGives = Array.isArray(btn.flagGive) ? btn.flagGive : (btn.flagGive ? [btn.flagGive] : []);
       flagGives.forEach(f => { if (f) flags.push(f); });
       applyDiceFlag(btn);
       applyVarEffect(btn);

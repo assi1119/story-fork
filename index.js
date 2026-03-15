@@ -6,7 +6,6 @@ const ADMIN_UID = 'AQtwwjYoTwMbCsrsMI0PA69XE443';
 let scenes = {};
 let sceneCount = 0;
 let currentMode = 'simple';
-let currentGameMode = 'none';
 let currentGenre = [];
 let libraries = [];
 let customVars = [];
@@ -16,26 +15,6 @@ let currentUser = null;
 let activeButtonTab = {};
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const palette = ['#e94560','#1a6fc4','#1d9e75','#7f77dd','#e8760a','#d4537e','#444441','#0f6e56'];
-
-const GAME_MODE_LIBS = {
-  rpg: [
-    { type: 'hp', name: 'HP', max: 100, value: 100 },
-    { type: 'mp', name: 'MP', max: 50, value: 50 },
-    { type: 'level', name: 'レベル', value: 1 },
-    { type: 'exp', name: 'EXP', value: 0, nextLevel: 100 },
-    { type: 'inventory', name: 'アイテム', items: [] }
-  ],
-  trpg: [
-    { type: 'san', name: 'SAN値', max: 100, value: 100 },
-    { type: 'skill', name: '技能値', skills: [] },
-    { type: 'charsheet', name: 'キャラシート', fields: [] }
-  ],
-  quiz: [
-    { type: 'score', name: 'スコア', value: 0, total: 0 },
-    { type: 'timer', name: 'タイマー', seconds: 30, active: false },
-    { type: 'result', name: '結果', message: '' }
-  ]
-};
 
 onAuthStateChanged(auth, async user => {
   currentUser = user;
@@ -173,7 +152,6 @@ function resetCreateForm() {
   customVars = [];
   thumbnailData = null;
   currentGenre = [];
-  currentGameMode = 'none';
 }
 
 function backToModeSelect() {
@@ -192,21 +170,6 @@ function updateGenreSelection() {
   document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
 }
 
-function selectGameMode(mode) {
-  currentGameMode = mode;
-  document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  if (mode !== 'none') {
-    const modeLibs = GAME_MODE_LIBS[mode] || [];
-    modeLibs.forEach(lib => {
-      if (!libraries.find(l => l.type === lib.type)) {
-        libraries.push({ ...lib, id: 'lib' + Date.now() + Math.random() });
-      }
-    });
-    renderLibrary();
-  }
-}
-
 function startCreate(mode) {
   currentMode = mode;
   libraries = [];
@@ -215,7 +178,6 @@ function startCreate(mode) {
   sceneCount = 0;
   thumbnailData = null;
   currentGenre = [];
-  currentGameMode = 'none';
   document.getElementById('mode-select').style.display = 'none';
   document.getElementById('game-form').style.display = 'block';
   document.getElementById('library-list').innerHTML = '';
@@ -459,6 +421,11 @@ function addLibrary(type) {
     lib.name = 'タイマー'; lib.seconds = parseInt(sec); lib.remaining = parseInt(sec); lib.active = false;
   } else if (type === 'result') {
     lib.name = '結果表示'; lib.message = '';
+  } else if (type === 'character') {
+    const name = prompt('キャラクター名を入力（例：アリス）');
+    if (!name) return;
+    lib.name = name; lib.charName = name; lib.image = '';
+    lib.expression = '通常'; lib.expressions = ['通常']; lib.value = 0;
   }
 
   libraries.push(lib);
@@ -475,8 +442,9 @@ function renderLibrary() {
     if (lib.type === 'affection') preview = lib.name + ' ' + '♡'.repeat(lib.max);
     else if (lib.type === 'hp' || lib.type === 'mp') preview = lib.name + ' ' + lib.value + '/' + lib.max;
     else if (lib.type === 'san') preview = 'SAN値 ' + lib.value + '/' + lib.max;
-    else if (lib.type === 'score') preview = 'スコア 0/' + lib.total;
+    else if (lib.type === 'score') preview = 'スコア 0';
     else if (lib.type === 'timer') preview = 'タイマー ' + lib.seconds + '秒';
+    else if (lib.type === 'character') preview = lib.name + '（キャラクター）';
     else if (lib.value !== undefined) preview = lib.name + ' ' + lib.value + (lib.unit || '');
     div.innerHTML = '<span class="lib-preview">' + preview + '</span>' +
       '<button class="delete-btn" onclick="deleteLibrary(' + i + ')">✕</button>';
@@ -527,7 +495,7 @@ function createSceneCard(scene) {
   const allVarNames = [...libraries.map(l => '{' + l.name + '}'), ...customVars.map(v => '{' + v.name + '}')];
   const hintText = allVarNames.length > 0
     ? '文章に ' + allVarNames.join(' ') + ' と書くと値が表示されます'
-    : '{ 変数名 } と書くと値が表示されます（ライブラリや変数を追加すると使えます）';
+    : '{ 変数名 } と書くと値が表示されます';
 
   let buttonsHTML = '';
 
@@ -577,7 +545,9 @@ function createSceneCard(scene) {
         '<div class="button-row">' +
         '<span class="btn-label" style="background:' + btn.color + '">【' + btn.label + '】</span>' +
         '<span class="btn-arrow">→</span>' +
-        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].next = this.value">' + sceneOpts.replace('value="' + btn.next + '"', 'value="' + btn.next + '" selected') + '</select>' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].next = this.value">' +
+        sceneOpts.replace('value="' + btn.next + '"', 'value="' + btn.next + '" selected') +
+        '</select>' +
         '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
         '</div>' +
         '<div class="btn-tab-bar">' +
@@ -619,8 +589,7 @@ function createSceneCard(scene) {
           '</div>' : '') +
         (activeTab === 'if' ?
           '<div class="btn-tab-content">' +
-          '<div class="btn-option-row">' +
-          '<span class="btn-option-label">条件モード：</span>' +
+          '<div class="btn-option-row"><span class="btn-option-label">条件モード：</span>' +
           '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifMode = this.value">' +
           '<option value="all"' + ((btn.ifMode || 'all') === 'all' ? ' selected' : '') + '>全て満たす（AND）</option>' +
           '<option value="any"' + ((btn.ifMode || 'all') === 'any' ? ' selected' : '') + '>どれか満たす（OR）</option>' +
@@ -679,7 +648,6 @@ async function uploadGame() {
     uid: currentUser.uid,
     thumbnail: thumbnailData || '',
     mode: currentMode,
-    gameMode: currentGameMode,
     libraries: JSON.parse(JSON.stringify(libraries)),
     customVars: JSON.parse(JSON.stringify(customVars)),
     story: JSON.parse(JSON.stringify(scenes)),
@@ -704,9 +672,7 @@ async function postNotice() {
   if (!body) return;
   try {
     await addDoc(collection(db, 'notices'), {
-      title,
-      body,
-      createdAt: new Date().toISOString()
+      title, body, createdAt: new Date().toISOString()
     });
     alert('お知らせを投稿しました！');
     loadNotices();
@@ -723,10 +689,7 @@ async function loadNotices() {
     const snapshot = await getDocs(q);
     const notices = [];
     snapshot.forEach(d => notices.push({ id: d.id, ...d.data() }));
-    if (notices.length === 0) {
-      area.style.display = 'none';
-      return;
-    }
+    if (notices.length === 0) { area.style.display = 'none'; return; }
     area.style.display = 'block';
     area.innerHTML = notices.map(n =>
       '<div class="notice-item">' +
@@ -817,7 +780,6 @@ window.startCreate = startCreate;
 window.backToModeSelect = backToModeSelect;
 window.updateGenre = updateGenre;
 window.updateGenreSelection = updateGenreSelection;
-window.selectGameMode = selectGameMode;
 window.previewThumbnail = previewThumbnail;
 window.addScene = addScene;
 window.deleteScene = deleteScene;
