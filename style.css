@@ -1892,3 +1892,63 @@ footer {
   color: #e94560;
   border-color: #e94560;
 }
+
+.draft-btns {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.draft-save-btn {
+  background: #e6faf3;
+  color: #00a878;
+  border: 2px solid #b2ead8;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  transition: all 0.2s;
+}
+
+.draft-save-btn:hover {
+  background: #00c896;
+  color: #fff;
+  border-color: #00c896;
+}
+
+.draft-load-btn {
+  background: #fff;
+  color: #888;
+  border: 2px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  transition: all 0.2s;
+}
+
+.draft-load-btn:hover {
+  border-color: #00c896;
+  color: #00c896;
+}
+
+.scene-condition-panel {
+  background: #fef9f0;
+  border: 2px solid #f5dda0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.scene-condition-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b07d00;
+  margin-bottom: 8px;
+}
+
+

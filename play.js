@@ -83,6 +83,25 @@ function resolveText(text) {
 function showScene(sceneId) {
   const scene = game.story[sceneId];
   if (!scene) return;
+
+  const conditions = scene.sceneConditions || [];
+  if (conditions.length > 0) {
+    const mode = scene.sceneConditionMode || 'all';
+    const results = conditions.map(cond => {
+      if (cond.type === 'flag') return flags.includes(cond.tag);
+      if (cond.type === 'var') {
+        const val = customVarState[cond.varName];
+        return val !== undefined && val >= cond.varMin;
+      }
+      return true;
+    });
+    const pass = mode === 'all' ? results.every(r => r) : results.some(r => r);
+    if (!pass && scene.sceneConditionFail && game.story[scene.sceneConditionFail]) {
+      showScene(scene.sceneConditionFail);
+      return;
+    }
+  }
+
   document.getElementById('scene-title-display').textContent = scene.title || '';
   document.getElementById('scene-text').textContent = resolveText(scene.text);
   renderStatus();

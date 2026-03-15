@@ -223,7 +223,10 @@ function previewThumbnail(input) {
 function addScene() {
   sceneCount++;
   const id = 'scene' + sceneCount;
-  scenes[id] = { id, title: '', text: '', buttons: [], elements: [] };
+  scenes[id] = {
+    id, title: '', text: '', buttons: [], elements: [],
+    sceneConditions: [], sceneConditionMode: 'all', sceneConditionFail: ''
+  };
   renderTree();
   return id;
 }
@@ -327,6 +330,17 @@ function addIfCondition(sceneId, btnIndex) {
 
 function removeIfCondition(sceneId, btnIndex, condIndex) {
   scenes[sceneId].buttons[btnIndex].ifConditions.splice(condIndex, 1);
+  renderTree();
+}
+
+function addSceneCondition(sceneId) {
+  if (!scenes[sceneId].sceneConditions) scenes[sceneId].sceneConditions = [];
+  scenes[sceneId].sceneConditions.push({ type: 'flag', tag: '', varName: '', varMin: 0 });
+  renderTree();
+}
+
+function removeSceneCondition(sceneId, condIndex) {
+  scenes[sceneId].sceneConditions.splice(condIndex, 1);
   renderTree();
 }
 
@@ -644,12 +658,49 @@ function createSceneCard(scene) {
     }).join('');
   }
 
+  const sceneConditions = scene.sceneConditions || [];
+  const sceneCondMode = scene.sceneConditionMode || 'all';
+  const sceneCondFail = scene.sceneConditionFail || '';
+
+  const sceneCondHTML = sceneConditions.map((cond, ci) =>
+    '<div class="if-condition-row">' +
+    '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].type = this.value; renderTree()">' +
+    '<option value="flag"' + (cond.type === 'flag' ? ' selected' : '') + '>タグを持っている</option>' +
+    '<option value="var"' + (cond.type === 'var' ? ' selected' : '') + '>変数が○以上</option>' +
+    '</select>' +
+    (cond.type === 'flag' ?
+      '<input type="text" class="btn-option-input" placeholder="タグ名" value="' + (cond.tag || '') + '" oninput="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].tag = this.value">' : '') +
+    (cond.type === 'var' ?
+      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].varName = this.value">' + getVarOptions() + '</select>' +
+      '<input type="number" class="btn-option-input-sm" placeholder="最低値" value="' + (cond.varMin || 0) + '" oninput="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].varMin = parseInt(this.value)">' : '') +
+    '<button class="delete-btn" onclick="removeSceneCondition(\'' + scene.id + '\', ' + ci + ')">✕</button>' +
+    '</div>'
+  ).join('');
+
+  const sceneCondPanel = currentMode === 'normal' ?
+    '<div class="scene-condition-panel">' +
+    '<div class="scene-condition-title">🔒 このシーンの表示条件</div>' +
+    '<div class="btn-option-row"><span class="btn-option-label">条件モード：</span>' +
+    '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditionMode = this.value">' +
+    '<option value="all"' + (sceneCondMode === 'all' ? ' selected' : '') + '>全て満たす（AND）</option>' +
+    '<option value="any"' + (sceneCondMode === 'any' ? ' selected' : '') + '>どれか満たす（OR）</option>' +
+    '</select></div>' +
+    sceneCondHTML +
+    '<button class="add-btn" onclick="addSceneCondition(\'' + scene.id + '\')">＋ 条件を追加</button>' +
+    (sceneConditions.length > 0 ?
+      '<div class="btn-option-row"><span class="btn-option-label">条件未達成時：</span>' +
+      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditionFail = this.value">' +
+      getSceneOptions().replace('value="' + sceneCondFail + '"', 'value="' + sceneCondFail + '" selected') +
+      '</select></div>' : '') +
+    '</div>' : '';
+
   card.innerHTML =
     '<div class="scene-header">' +
     '<span class="scene-label">' + scene.id + '</span>' +
     '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
     '<button class="delete-scene-btn" onclick="deleteScene(\'' + scene.id + '\')">✕</button>' +
     '</div>' +
+    sceneCondPanel +
     '<textarea placeholder="シーンのテキストを入力...&#10;ヒント：' + hintText + '" oninput="updateSceneText(\'' + scene.id + '\', this.value)">' + scene.text + '</textarea>' +
     '<div class="buttons-list">' + buttonsHTML + '</div>' +
     '<div class="scene-actions">' +
@@ -669,6 +720,92 @@ async function uploadGame() {
   if (!title) { alert('タイトルを入力してください'); return; }
   if (currentGenre.length === 0) { alert('ジャンルを1つ以上選択してください'); return; }
   if (Object.keys(scenes).length === 0) { alert('シーンを追加してください'); return; }
+
+async function saveDraft() {
+  if (!currentUser) { alert('セーブするにはログインが必要です'); return; }
+  const title = document.getElementById('game-title').value || '無題の下書き';
+
+  const draft = {
+    title,
+    genres: currentGenre,
+    genre: currentGenre[0] || '',
+    description: document.getElementById('game-description').value,
+    author: currentUser.displayName || currentUser.email,
+    uid: currentUser.uid,
+    thumbnail: thumbnailData || '',
+    mode: currentMode,
+    libraries: JSON.parse(JSON.stringify(libraries)),
+    customVars: JSON.parse(JSON.stringify(customVars)),
+    story: JSON.parse(JSON.stringify(scenes)),
+    savedAt: new Date().toISOString()
+  };
+
+  try {
+    await addDoc(collection(db, 'drafts'), draft);
+    alert('下書きを保存しました！');
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
+async function loadDrafts() {
+  if (!currentUser) { alert('ログインが必要です'); return; }
+  try {
+    const q = query(collection(db, 'drafts'), where('uid', '==', currentUser.uid));
+    const snapshot = await getDocs(q);
+    const drafts = [];
+    snapshot.forEach(d => drafts.push({ id: d.id, ...d.data() }));
+    drafts.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+
+    if (drafts.length === 0) { alert('保存された下書きがありません'); return; }
+
+    const options = drafts.map((d, i) =>
+      i + ': ' + d.title + '（' + new Date(d.savedAt).toLocaleDateString('ja-JP') + '）'
+    ).join('\n');
+
+    const choice = prompt('読み込む下書きの番号を入力してください：\n' + options);
+    if (choice === null) return;
+    const index = parseInt(choice);
+    if (isNaN(index) || index < 0 || index >= drafts.length) { alert('無効な番号です'); return; }
+
+    const draft = drafts[index];
+    if (!confirm('「' + draft.title + '」を読み込みますか？\n現在の作業内容は失われます。')) return;
+
+    currentMode = draft.mode || 'simple';
+    currentGenre = draft.genres || [draft.genre] || [];
+    libraries = draft.libraries || [];
+    customVars = draft.customVars || [];
+    scenes = draft.story || {};
+    sceneCount = Object.keys(scenes).length;
+    thumbnailData = draft.thumbnail || null;
+
+    document.getElementById('mode-select').style.display = 'none';
+    document.getElementById('game-form').style.display = 'block';
+    document.getElementById('game-title').value = draft.title || '';
+    document.getElementById('game-description').value = draft.description || '';
+    document.getElementById('game-author').value = draft.author || '';
+    document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
+
+    document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
+      c.checked = currentGenre.includes(c.value);
+    });
+    document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
+
+    if (thumbnailData) {
+      const preview = document.getElementById('thumbnail-preview');
+      preview.src = thumbnailData;
+      preview.style.display = 'block';
+    }
+
+    renderLibrary();
+    renderCustomVars();
+    renderTree();
+    window.scenes = scenes;
+    alert('読み込みました！');
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
 
   const game = {
     title,
@@ -878,5 +1015,9 @@ window.removeIfCondition = removeIfCondition;
 window.postNotice = postNotice;
 window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
+window.saveDraft = saveDraft;
+window.loadDrafts = loadDrafts;
+window.addSceneCondition = addSceneCondition;
+window.removeSceneCondition = removeSceneCondition;
 
 loadGames();
