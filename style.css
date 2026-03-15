@@ -1460,3 +1460,247 @@ footer {
   background: #fff;
   color: #1a1a1a;
 }
+
+.header-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  background: #00c896;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+#header-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+  margin-right: 6px;
+  border: 2px solid #b2ead8;
+}
+
+.user-at {
+  font-size: 14px;
+  font-weight: 700;
+  color: #00c896;
+  margin-right: 2px;
+}
+
+.btn-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 4px;
+}
+
+.btn-tab {
+  background: #f5fdf9;
+  color: #00a878;
+  border: 2px solid #b2ead8;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-tab.active {
+  background: #00c896;
+  color: #fff;
+  border-color: #00c896;
+}
+
+.btn-tab:hover {
+  background: #00c896;
+  color: #fff;
+  border-color: #00c896;
+}
+
+.btn-tab-content {
+  background: #f5fdf9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 4px 0;
+  border: 2px solid #e0f5ee;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flag-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.flag-tag {
+  background: #e6faf3;
+  border: 2px solid #b2ead8;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #00a878;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.flag-tag span {
+  cursor: pointer;
+  color: #aaa;
+  font-size: 11px;
+}
+
+.flag-tag span:hover {
+  color: #e94560;
+}
+
+.if-condition-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0f5ee;
+}
+
+.game-mode-select {
+  margin-bottom: 14px;
+}
+
+.game-mode-select label {
+  font-size: 13px;
+  color: #888;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.game-mode-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-mode-btn {
+  background: #f5fdf9;
+  color: #00a878;
+  border: 2px solid #b2ead8;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.game-mode-btn.active {
+  background: #00c896;
+  color: #fff;
+  border-color: #00c896;
+}
+
+.game-mode-btn:hover {
+  background: #00c896;
+  color: #fff;
+  border-color: #00c896;
+}
+
+.custom-var-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #e0f5ee;
+}
+
+.custom-var-section h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
+#notice-area {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border: 3px solid #b2ead8;
+  box-shadow: 0 2px 8px rgba(0,200,150,0.08);
+}
+
+.notice-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #e0f5ee;
+}
+
+.notice-item:last-child {
+  border-bottom: none;
+}
+
+.notice-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.notice-body {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.7;
+  margin-bottom: 4px;
+}
+
+.notice-date {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.admin-btn {
+  background: #00c896;
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'メイリオ', sans-serif;
+  font-weight: 700;
+  margin-bottom: 16px;
+  transition: background 0.2s;
+}
+
+.admin-btn:hover {
+  background: #00a878;
+}
+
+.status-bar-wrap {
+  width: 80px;
+  height: 10px;
+  background: #e0f5ee;
+  border-radius: 999px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 6px;
+}
+
+.status-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s;
+}
+
+.timer-value {
+  font-weight: 700;
+  color: #e94560;
+}

@@ -1,18 +1,43 @@
 import { db, auth, googleProvider, collection, addDoc, getDocs, query, orderBy, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from './firebase.js';
-import { doc, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, updateDoc, deleteDoc, increment, getDoc, setDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const ADMIN_UID = 'AQtwwjYoTwMbCsrsMI0PA69XE443';
 
 let scenes = {};
 let sceneCount = 0;
 let currentMode = 'simple';
+let currentGameMode = 'none';
 let currentGenre = [];
 let libraries = [];
+let customVars = [];
 let currentFilterGenre = 'all';
 let thumbnailData = null;
 let currentUser = null;
+let activeButtonTab = {};
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const palette = ['#e94560','#1a6fc4','#1d9e75','#7f77dd','#e8760a','#d4537e','#444441','#0f6e56'];
 
-onAuthStateChanged(auth, user => {
+const GAME_MODE_LIBS = {
+  rpg: [
+    { type: 'hp', name: 'HP', max: 100, value: 100 },
+    { type: 'mp', name: 'MP', max: 50, value: 50 },
+    { type: 'level', name: 'レベル', value: 1 },
+    { type: 'exp', name: 'EXP', value: 0, nextLevel: 100 },
+    { type: 'inventory', name: 'アイテム', items: [] }
+  ],
+  trpg: [
+    { type: 'san', name: 'SAN値', max: 100, value: 100 },
+    { type: 'skill', name: '技能値', skills: [] },
+    { type: 'charsheet', name: 'キャラシート', fields: [] }
+  ],
+  quiz: [
+    { type: 'score', name: 'スコア', value: 0, total: 0 },
+    { type: 'timer', name: 'タイマー', seconds: 30, active: false },
+    { type: 'result', name: '結果', message: '' }
+  ]
+};
+
+onAuthStateChanged(auth, async user => {
   currentUser = user;
   if (user) {
     document.getElementById('user-info').style.display = 'flex';
@@ -21,6 +46,10 @@ onAuthStateChanged(auth, user => {
     document.getElementById('game-author').value = user.displayName || user.email;
     document.getElementById('not-logged-in').style.display = 'none';
     document.getElementById('mode-select').style.display = 'block';
+    await loadUserAvatar(user.uid);
+    if (user.uid === ADMIN_UID) {
+      document.getElementById('admin-notice-btn').style.display = 'block';
+    }
   } else {
     document.getElementById('user-info').style.display = 'none';
     document.getElementById('login-btns').style.display = 'flex';
@@ -29,7 +58,22 @@ onAuthStateChanged(auth, user => {
     document.getElementById('mode-select').style.display = 'none';
     document.getElementById('game-form').style.display = 'none';
   }
+  loadNotices();
 });
+
+async function loadUserAvatar(uid) {
+  try {
+    const docSnap = await getDoc(doc(db, 'users', uid));
+    if (docSnap.exists() && docSnap.data().avatar) {
+      const img = document.getElementById('header-avatar');
+      if (img) {
+        img.src = docSnap.data().avatar;
+        img.style.display = 'block';
+        document.getElementById('header-avatar-placeholder').style.display = 'none';
+      }
+    }
+  } catch (e) { console.log(e); }
+}
 
 function toggleUserMenu() {
   const dropdown = document.getElementById('user-dropdown');
@@ -126,8 +170,10 @@ function resetCreateForm() {
   scenes = {};
   sceneCount = 0;
   libraries = [];
+  customVars = [];
   thumbnailData = null;
   currentGenre = [];
+  currentGameMode = 'none';
 }
 
 function backToModeSelect() {
@@ -146,13 +192,30 @@ function updateGenreSelection() {
   document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
 }
 
+function selectGameMode(mode) {
+  currentGameMode = mode;
+  document.querySelectorAll('.game-mode-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (mode !== 'none') {
+    const modeLibs = GAME_MODE_LIBS[mode] || [];
+    modeLibs.forEach(lib => {
+      if (!libraries.find(l => l.type === lib.type)) {
+        libraries.push({ ...lib, id: 'lib' + Date.now() + Math.random() });
+      }
+    });
+    renderLibrary();
+  }
+}
+
 function startCreate(mode) {
   currentMode = mode;
   libraries = [];
+  customVars = [];
   scenes = {};
   sceneCount = 0;
   thumbnailData = null;
   currentGenre = [];
+  currentGameMode = 'none';
   document.getElementById('mode-select').style.display = 'none';
   document.getElementById('game-form').style.display = 'block';
   document.getElementById('library-list').innerHTML = '';
@@ -168,9 +231,7 @@ function startCreate(mode) {
   addScene();
 }
 
-function updateGenre() {
-  renderTree();
-}
+function updateGenre() { renderTree(); }
 
 function previewThumbnail(input) {
   const file = input.files[0];
@@ -199,6 +260,13 @@ function deleteScene(sceneId) {
     return;
   }
   delete scenes[sceneId];
+  Object.values(scenes).forEach(scene => {
+    scene.buttons.forEach(btn => {
+      if (!scenes[btn.next]) {
+        btn.next = Object.keys(scenes)[0];
+      }
+    });
+  });
   renderTree();
 }
 
@@ -211,10 +279,12 @@ function addButton(sceneId) {
     label,
     color: '#00c896',
     next: nextId,
-    flagGive: '',
-    ifCondition: { type: 'none', tag: '', diceMin: 1 },
+    flagGive: [],
+    ifConditions: [],
+    ifMode: 'all',
     libEffect: { libId: '', change: 0, branchMin: '', branchMinScene: '', branchElseScene: '' },
-    diceFlag: { libId: '', min: 1, successFlag: '', failFlag: '' }
+    diceFlag: { libId: '', min: 1, successFlag: '', failFlag: '' },
+    varEffect: { varName: '', change: 0 }
   });
   renderTree();
 }
@@ -237,6 +307,65 @@ function updateSceneTitle(sceneId, value) {
   scenes[sceneId].title = value;
 }
 
+function toggleButtonTab(sceneId, btnIndex, tab) {
+  const key = sceneId + '_' + btnIndex;
+  activeButtonTab[key] = activeButtonTab[key] === tab ? null : tab;
+  renderTree();
+}
+
+function addFlagGive(sceneId, btnIndex) {
+  const flag = prompt('付与するタグ名を入力（例：鍵、仲間A）');
+  if (!flag) return;
+  if (!scenes[sceneId].buttons[btnIndex].flagGive) scenes[sceneId].buttons[btnIndex].flagGive = [];
+  scenes[sceneId].buttons[btnIndex].flagGive.push(flag);
+  renderTree();
+}
+
+function removeFlagGive(sceneId, btnIndex, flagIndex) {
+  scenes[sceneId].buttons[btnIndex].flagGive.splice(flagIndex, 1);
+  renderTree();
+}
+
+function addIfCondition(sceneId, btnIndex) {
+  if (!scenes[sceneId].buttons[btnIndex].ifConditions) scenes[sceneId].buttons[btnIndex].ifConditions = [];
+  scenes[sceneId].buttons[btnIndex].ifConditions.push({ type: 'flag', tag: '', diceMin: 1, varName: '', varMin: 0 });
+  renderTree();
+}
+
+function removeIfCondition(sceneId, btnIndex, condIndex) {
+  scenes[sceneId].buttons[btnIndex].ifConditions.splice(condIndex, 1);
+  renderTree();
+}
+
+function addCustomVar() {
+  const name = prompt('変数名を入力（例：好感度、ポイント）');
+  if (!name) return;
+  const type = prompt('型を入力（number / text / bool）');
+  if (!type) return;
+  const init = prompt('初期値を入力（例：0、こんにちは、true）');
+  if (init === null) return;
+  customVars.push({ name, type, value: type === 'number' ? parseInt(init) : type === 'bool' ? init === 'true' : init });
+  renderCustomVars();
+}
+
+function removeCustomVar(index) {
+  customVars.splice(index, 1);
+  renderCustomVars();
+}
+
+function renderCustomVars() {
+  const list = document.getElementById('custom-var-list');
+  if (!list) return;
+  list.innerHTML = '';
+  customVars.forEach((v, i) => {
+    const div = document.createElement('div');
+    div.className = 'lib-item';
+    div.innerHTML = '<span class="lib-preview">' + v.name + ' (' + v.type + ') = ' + v.value + '</span>' +
+      '<button class="delete-btn" onclick="removeCustomVar(' + i + ')">✕</button>';
+    list.appendChild(div);
+  });
+}
+
 function addLibrary(type) {
   const lib = { type, id: 'lib' + Date.now() };
 
@@ -245,72 +374,91 @@ function addLibrary(type) {
     if (!name) return;
     const max = prompt('ハートの数を入力（例：5）');
     if (!max) return;
-    lib.name = name;
-    lib.max = parseInt(max);
-    lib.value = 0;
+    lib.name = name; lib.max = parseInt(max); lib.value = 0;
   } else if (type === 'dice') {
     const faces = prompt('ダイスの面数を入力（4/6/8/10/12/20/100）');
     if (!faces) return;
     const count = prompt('一度に振る数を入力（例：1 または 2）');
     if (!count) return;
-    lib.faces = parseInt(faces);
-    lib.count = parseInt(count);
-    lib.name = count + 'd' + faces;
-    lib.result = null;
+    lib.faces = parseInt(faces); lib.count = parseInt(count);
+    lib.name = count + 'd' + faces; lib.result = null;
   } else if (type === 'saikoro') {
     const count = prompt('さいころの個数を入力（1〜6）');
     if (!count) return;
     const c = Math.min(6, Math.max(1, parseInt(count)));
-    lib.count = c;
-    lib.faces = 6;
-    lib.name = c + '個のさいころ';
-    lib.results = [];
+    lib.count = c; lib.faces = 6; lib.name = c + '個のさいころ'; lib.results = [];
   } else if (type === 'san') {
     const max = prompt('SAN値の最大値を入力（例：100）');
     if (!max) return;
-    lib.name = 'SAN値';
-    lib.max = parseInt(max);
-    lib.value = parseInt(max);
+    lib.name = 'SAN値'; lib.max = parseInt(max); lib.value = parseInt(max);
   } else if (type === 'counter') {
     const name = prompt('カウンターの名前を入力（例：撃破数）');
     if (!name) return;
     const init = prompt('初期値を入力（例：0）');
     if (init === null) return;
-    lib.name = name;
-    lib.value = parseInt(init);
+    lib.name = name; lib.value = parseInt(init);
   } else if (type === 'money') {
     const name = prompt('名前を入力（例：所持金）');
     if (!name) return;
-    const unit = prompt('単位を入力（例：G、円、ゴールド）');
+    const unit = prompt('単位を入力（例：G、円）');
     if (!unit) return;
     const init = prompt('初期値を入力（例：100）');
     if (init === null) return;
-    lib.name = name;
-    lib.unit = unit;
-    lib.value = parseInt(init);
+    lib.name = name; lib.unit = unit; lib.value = parseInt(init);
   } else if (type === 'time') {
-    const name = prompt('名前を入力（例：日数、時間）');
+    const name = prompt('名前を入力（例：日数）');
     if (!name) return;
-    const unit = prompt('単位を入力（例：日目、時間目）');
+    const unit = prompt('単位を入力（例：日目）');
     if (!unit) return;
     const init = prompt('初期値を入力（例：1）');
     if (init === null) return;
-    lib.name = name;
-    lib.unit = unit;
-    lib.value = parseInt(init);
+    lib.name = name; lib.unit = unit; lib.value = parseInt(init);
   } else if (type === 'flag') {
-    const name = prompt('フラグの名前を入力（例：鍵を持っている）');
+    const name = prompt('フラグの名前を入力');
     if (!name) return;
-    lib.name = name;
-    lib.value = false;
+    lib.name = name; lib.value = false;
   } else if (type === 'status') {
     const name = prompt('状態の名前を入力（例：天気）');
     if (!name) return;
-    const options = prompt('状態の選択肢をカンマ区切りで入力（例：晴れ,雨,雪）');
+    const options = prompt('選択肢をカンマ区切りで入力（例：晴れ,雨,雪）');
     if (!options) return;
-    lib.name = name;
-    lib.options = options.split(',');
-    lib.value = lib.options[0];
+    lib.name = name; lib.options = options.split(','); lib.value = lib.options[0];
+  } else if (type === 'hp') {
+    const max = prompt('HPの最大値を入力（例：100）');
+    if (!max) return;
+    lib.name = 'HP'; lib.max = parseInt(max); lib.value = parseInt(max);
+  } else if (type === 'mp') {
+    const max = prompt('MPの最大値を入力（例：50）');
+    if (!max) return;
+    lib.name = 'MP'; lib.max = parseInt(max); lib.value = parseInt(max);
+  } else if (type === 'level') {
+    lib.name = 'レベル'; lib.value = 1;
+  } else if (type === 'exp') {
+    const next = prompt('次のレベルまでのEXP（例：100）');
+    if (!next) return;
+    lib.name = 'EXP'; lib.value = 0; lib.nextLevel = parseInt(next);
+  } else if (type === 'inventory') {
+    lib.name = 'アイテム'; lib.items = [];
+  } else if (type === 'skill') {
+    const name = prompt('技能名を入力（例：図書館）');
+    if (!name) return;
+    const value = prompt('技能値を入力（例：60）');
+    if (!value) return;
+    lib.name = name + '技能'; lib.skillName = name; lib.value = parseInt(value);
+  } else if (type === 'charsheet') {
+    const name = prompt('キャラシート項目名（例：STR）');
+    if (!name) return;
+    const value = prompt('初期値（例：10）');
+    if (!value) return;
+    lib.name = name; lib.value = parseInt(value);
+  } else if (type === 'score') {
+    lib.name = 'スコア'; lib.value = 0; lib.total = 0;
+  } else if (type === 'timer') {
+    const sec = prompt('制限時間（秒）を入力（例：30）');
+    if (!sec) return;
+    lib.name = 'タイマー'; lib.seconds = parseInt(sec); lib.remaining = parseInt(sec); lib.active = false;
+  } else if (type === 'result') {
+    lib.name = '結果表示'; lib.message = '';
   }
 
   libraries.push(lib);
@@ -323,26 +471,13 @@ function renderLibrary() {
   libraries.forEach((lib, i) => {
     const div = document.createElement('div');
     div.className = 'lib-item';
-    let preview = '';
-    if (lib.type === 'affection') {
-      preview = lib.name + ' ' + '♡'.repeat(lib.max);
-    } else if (lib.type === 'dice') {
-      preview = lib.name;
-    } else if (lib.type === 'saikoro') {
-      preview = lib.name;
-    } else if (lib.type === 'san') {
-      preview = 'SAN値 ' + lib.value + ' / ' + lib.max;
-    } else if (lib.type === 'counter') {
-      preview = lib.name + ' ' + lib.value;
-    } else if (lib.type === 'money') {
-      preview = lib.name + ' ' + lib.value + lib.unit;
-    } else if (lib.type === 'time') {
-      preview = lib.name + ' ' + lib.value + lib.unit;
-    } else if (lib.type === 'flag') {
-      preview = lib.name + ' OFF';
-    } else if (lib.type === 'status') {
-      preview = lib.name + ' ' + lib.value;
-    }
+    let preview = lib.name || lib.type;
+    if (lib.type === 'affection') preview = lib.name + ' ' + '♡'.repeat(lib.max);
+    else if (lib.type === 'hp' || lib.type === 'mp') preview = lib.name + ' ' + lib.value + '/' + lib.max;
+    else if (lib.type === 'san') preview = 'SAN値 ' + lib.value + '/' + lib.max;
+    else if (lib.type === 'score') preview = 'スコア 0/' + lib.total;
+    else if (lib.type === 'timer') preview = 'タイマー ' + lib.seconds + '秒';
+    else if (lib.value !== undefined) preview = lib.name + ' ' + lib.value + (lib.unit || '');
     div.innerHTML = '<span class="lib-preview">' + preview + '</span>' +
       '<button class="delete-btn" onclick="deleteLibrary(' + i + ')">✕</button>';
     list.appendChild(div);
@@ -362,16 +497,18 @@ function getSceneOptions() {
 
 function getLibOptions() {
   return '<option value="">なし</option>' +
-    libraries.map(lib =>
-      '<option value="' + lib.id + '">' + lib.name + '</option>'
-    ).join('');
+    libraries.map(lib => '<option value="' + lib.id + '">' + lib.name + '</option>').join('');
 }
 
 function getDiceLibOptions() {
   return '<option value="">なし</option>' +
-    libraries.filter(lib => lib.type === 'dice' || lib.type === 'saikoro').map(lib =>
-      '<option value="' + lib.id + '">' + lib.name + '</option>'
-    ).join('');
+    libraries.filter(lib => lib.type === 'dice' || lib.type === 'saikoro')
+      .map(lib => '<option value="' + lib.id + '">' + lib.name + '</option>').join('');
+}
+
+function getVarOptions() {
+  return '<option value="">なし</option>' +
+    customVars.map(v => '<option value="' + v.name + '">' + v.name + '</option>').join('');
 }
 
 function renderTree() {
@@ -382,25 +519,130 @@ function renderTree() {
   });
 }
 
-function createSimpleSceneCard(scene) {
+function createSceneCard(scene) {
   const card = document.createElement('div');
   card.className = 'scene-card';
   card.id = 'card-' + scene.id;
 
-  let buttonsHTML = scene.buttons.map((btn, i) => {
-    const sceneOpts = Object.keys(scenes).map(id =>
-      '<option value="' + id + '"' + (btn.next === id ? ' selected' : '') + '>' +
-      id + (scenes[id].title ? ' (' + scenes[id].title + ')' : '') +
-      '</option>'
-    ).join('');
-    return '<div class="button-row">' +
-      '<span class="btn-label" style="background:#00c896">【' + btn.label + '】</span>' +
-      '<span class="btn-arrow">→</span>' +
-      '<span class="btn-option-label" style="color:#00a878;font-weight:700;">飛び先：</span>' +
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].next = this.value">' + sceneOpts + '</select>' +
-      '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
-      '</div>';
-  }).join('');
+  const allVarNames = [...libraries.map(l => '{' + l.name + '}'), ...customVars.map(v => '{' + v.name + '}')];
+  const hintText = allVarNames.length > 0
+    ? '文章に ' + allVarNames.join(' ') + ' と書くと値が表示されます'
+    : '{ 変数名 } と書くと値が表示されます（ライブラリや変数を追加すると使えます）';
+
+  let buttonsHTML = '';
+
+  if (currentMode === 'simple') {
+    buttonsHTML = scene.buttons.map((btn, i) => {
+      const sceneOpts = Object.keys(scenes).map(id =>
+        '<option value="' + id + '"' + (btn.next === id ? ' selected' : '') + '>' +
+        id + (scenes[id].title ? ' (' + scenes[id].title + ')' : '') + '</option>'
+      ).join('');
+      return '<div class="button-row">' +
+        '<span class="btn-label" style="background:#00c896">【' + btn.label + '】</span>' +
+        '<span class="btn-option-label" style="color:#00a878;font-weight:700;margin-left:8px;">飛び先：</span>' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].next = this.value">' + sceneOpts + '</select>' +
+        '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
+        '</div>';
+    }).join('');
+  } else {
+    buttonsHTML = scene.buttons.map((btn, i) => {
+      const key = scene.id + '_' + i;
+      const activeTab = activeButtonTab[key] || null;
+      const sceneOpts = getSceneOptions();
+      const libOpts = getLibOptions();
+      const diceOpts = getDiceLibOptions();
+      const varOpts = getVarOptions();
+
+      const flagGives = (btn.flagGive || []).map((f, fi) =>
+        '<span class="flag-tag">' + f + ' <span onclick="removeFlagGive(\'' + scene.id + '\', ' + i + ', ' + fi + ')">✕</span></span>'
+      ).join('');
+
+      const ifConditionsHTML = (btn.ifConditions || []).map((cond, ci) =>
+        '<div class="if-condition-row">' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifConditions[' + ci + '].type = this.value; renderTree()">' +
+        '<option value="flag"' + (cond.type === 'flag' ? ' selected' : '') + '>タグを持っている</option>' +
+        '<option value="dice"' + (cond.type === 'dice' ? ' selected' : '') + '>ダイス結果が○以上</option>' +
+        '<option value="var"' + (cond.type === 'var' ? ' selected' : '') + '>変数が○以上</option>' +
+        '</select>' +
+        (cond.type === 'flag' ? '<input type="text" class="btn-option-input" placeholder="タグ名" value="' + (cond.tag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifConditions[' + ci + '].tag = this.value">' : '') +
+        (cond.type === 'dice' ? '<input type="number" class="btn-option-input-sm" placeholder="最低値" value="' + (cond.diceMin || 1) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifConditions[' + ci + '].diceMin = parseInt(this.value)">' : '') +
+        (cond.type === 'var' ?
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifConditions[' + ci + '].varName = this.value">' + varOpts + '</select>' +
+          '<input type="number" class="btn-option-input-sm" placeholder="最低値" value="' + (cond.varMin || 0) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifConditions[' + ci + '].varMin = parseInt(this.value)">' : '') +
+        '<button class="delete-btn" onclick="removeIfCondition(\'' + scene.id + '\', ' + i + ', ' + ci + ')">✕</button>' +
+        '</div>'
+      ).join('');
+
+      return '<div class="btn-block">' +
+        '<div class="button-row">' +
+        '<span class="btn-label" style="background:' + btn.color + '">【' + btn.label + '】</span>' +
+        '<span class="btn-arrow">→</span>' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].next = this.value">' + sceneOpts.replace('value="' + btn.next + '"', 'value="' + btn.next + '" selected') + '</select>' +
+        '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
+        '</div>' +
+        '<div class="btn-tab-bar">' +
+        '<button class="btn-tab' + (activeTab === 'color' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'color\')">🎨 色</button>' +
+        '<button class="btn-tab' + (activeTab === 'flag' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'flag\')">🚩 フラグ</button>' +
+        '<button class="btn-tab' + (activeTab === 'lib' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'lib\')">📚 ライブラリ</button>' +
+        '<button class="btn-tab' + (activeTab === 'var' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'var\')">🔢 変数</button>' +
+        '<button class="btn-tab' + (activeTab === 'if' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'if\')">❓ IF条件</button>' +
+        '<button class="btn-tab' + (activeTab === 'dice' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'dice\')">🎲 ダイス</button>' +
+        '</div>' +
+        (activeTab === 'color' ?
+          '<div class="btn-tab-content"><div class="color-palette">' +
+          palette.map(c => '<span class="palette-dot' + (btn.color === c ? ' selected' : '') + '" style="background:' + c + '" onclick="updateButtonColor(\'' + scene.id + '\', ' + i + ', \'' + c + '\')"></span>').join('') +
+          '</div><input type="color" value="' + btn.color + '" onchange="updateButtonColor(\'' + scene.id + '\', ' + i + ', this.value)"></div>' : '') +
+        (activeTab === 'flag' ?
+          '<div class="btn-tab-content">' +
+          '<div class="flag-tags">' + flagGives + '</div>' +
+          '<button class="add-btn" onclick="addFlagGive(\'' + scene.id + '\', ' + i + ')">＋ フラグを追加</button>' +
+          '</div>' : '') +
+        (activeTab === 'lib' ?
+          '<div class="btn-tab-content">' +
+          '<div class="btn-option-row"><span class="btn-option-label">対象：</span>' +
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.libId = this.value">' + libOpts + '</select>' +
+          '<span class="btn-option-label">変化：</span>' +
+          '<input type="number" class="btn-option-input-sm" value="' + (btn.libEffect.change || 0) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.change = parseInt(this.value)"></div>' +
+          '<div class="btn-option-row"><span class="btn-option-hint">値が</span>' +
+          '<input type="number" class="btn-option-input-sm" placeholder="例：5" value="' + (btn.libEffect.branchMin || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.branchMin = this.value">' +
+          '<span class="btn-option-hint">以上なら</span>' +
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.branchMinScene = this.value">' + sceneOpts + '</select>' +
+          '<span class="btn-option-hint">未満なら</span>' +
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.branchElseScene = this.value">' + sceneOpts + '</select></div>' +
+          '</div>' : '') +
+        (activeTab === 'var' ?
+          '<div class="btn-tab-content">' +
+          '<div class="btn-option-row"><span class="btn-option-label">変数：</span>' +
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].varEffect.varName = this.value">' + varOpts + '</select>' +
+          '<span class="btn-option-label">変化：</span>' +
+          '<input type="number" class="btn-option-input-sm" value="' + (btn.varEffect ? btn.varEffect.change || 0 : 0) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].varEffect.change = parseInt(this.value)"></div>' +
+          '</div>' : '') +
+        (activeTab === 'if' ?
+          '<div class="btn-tab-content">' +
+          '<div class="btn-option-row">' +
+          '<span class="btn-option-label">条件モード：</span>' +
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifMode = this.value">' +
+          '<option value="all"' + ((btn.ifMode || 'all') === 'all' ? ' selected' : '') + '>全て満たす（AND）</option>' +
+          '<option value="any"' + ((btn.ifMode || 'all') === 'any' ? ' selected' : '') + '>どれか満たす（OR）</option>' +
+          '</select></div>' +
+          ifConditionsHTML +
+          '<button class="add-btn" onclick="addIfCondition(\'' + scene.id + '\', ' + i + ')">＋ 条件を追加</button>' +
+          '</div>' : '') +
+        (activeTab === 'dice' ?
+          '<div class="btn-tab-content">' +
+          '<div class="btn-option-row"><span class="btn-option-label">ダイス：</span>' +
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.libId = this.value">' + diceOpts + '</select>' +
+          '<span class="btn-option-label">以上：</span>' +
+          '<input type="number" class="btn-option-input-sm" value="' + (btn.diceFlag.min || 1) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.min = parseInt(this.value)"></div>' +
+          '<div class="btn-option-row">' +
+          '<span class="btn-option-hint">成功フラグ：</span>' +
+          '<input type="text" class="btn-option-input" placeholder="例：成功" value="' + (btn.diceFlag.successFlag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.successFlag = this.value">' +
+          '<span class="btn-option-hint">失敗フラグ：</span>' +
+          '<input type="text" class="btn-option-input" placeholder="例：失敗" value="' + (btn.diceFlag.failFlag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.failFlag = this.value"></div>' +
+          '</div>' : '') +
+        '</div>';
+    }).join('');
+  }
 
   card.innerHTML =
     '<div class="scene-header">' +
@@ -408,105 +650,7 @@ function createSimpleSceneCard(scene) {
     '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
     '<button class="delete-scene-btn" onclick="deleteScene(\'' + scene.id + '\')">✕</button>' +
     '</div>' +
-    '<textarea placeholder="このシーンの文章を入力..." oninput="updateSceneText(\'' + scene.id + '\', this.value)">' + scene.text + '</textarea>' +
-    '<div class="simple-choices-label">このシーンの選択肢は？</div>' +
-    '<div class="buttons-list">' + buttonsHTML + '</div>' +
-    '<div class="scene-actions">' +
-    '<button class="add-btn" onclick="addButton(\'' + scene.id + '\')">＋ 選択肢を追加</button>' +
-    '<button class="add-btn" onclick="addScene()">＋ シーン追加</button>' +
-    '</div>';
-
-  return card;
-}
-
-function createNormalSceneCard(scene) {
-  const card = document.createElement('div');
-  card.className = 'scene-card';
-  card.id = 'card-' + scene.id;
-
-  const libNames = libraries.map(l => '{' + l.name + '}').join('　');
-  const hintText = libraries.length > 0
-    ? '文章にライブラリの値を表示するには { ライブラリ名 } と書いてください。例：' + libNames
-    : '普通モードでは { ライブラリ名 } と書くと値が表示されます（ライブラリを追加すると使えます）';
-
-  let buttonsHTML = scene.buttons.map((btn, i) => {
-    const ifOptions =
-      '<option value="none"' + (btn.ifCondition.type === 'none' ? ' selected' : '') + '>条件なし</option>' +
-      '<option value="flag"' + (btn.ifCondition.type === 'flag' ? ' selected' : '') + '>タグを持っている</option>' +
-      '<option value="dice"' + (btn.ifCondition.type === 'dice' ? ' selected' : '') + '>ダイス結果が○以上</option>';
-
-    const sceneOpts = getSceneOptions();
-    const libOpts = getLibOptions();
-    const diceOpts = getDiceLibOptions();
-
-    return '<div class="btn-block">' +
-      '<div class="button-row">' +
-      '<span class="btn-label" style="background:' + btn.color + '">【' + btn.label + '】</span>' +
-      '<span class="btn-arrow">→</span>' +
-      '<span class="btn-next">' + btn.next + '</span>' +
-      '<div class="color-palette">' +
-      palette.map(c =>
-        '<span class="palette-dot' + (btn.color === c ? ' selected' : '') + '" style="background:' + c + '" onclick="updateButtonColor(\'' + scene.id + '\', ' + i + ', \'' + c + '\')"></span>'
-      ).join('') +
-      '</div>' +
-      '<input type="color" value="' + btn.color + '" title="カスタムカラー" onchange="updateButtonColor(\'' + scene.id + '\', ' + i + ', this.value)">' +
-      '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
-      '</div>' +
-      '<div class="btn-options">' +
-      '<div class="btn-section-title">フラグ付与</div>' +
-      '<div class="btn-option-row">' +
-      '<span class="btn-option-label">タグ名：</span>' +
-      '<input type="text" class="btn-option-input" placeholder="例：鍵、仲間A" value="' + (btn.flagGive || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].flagGive = this.value">' +
-      '<span class="btn-option-hint">このボタンを押すとタグが付与されます</span>' +
-      '</div>' +
-      '<div class="btn-section-title">ライブラリ効果</div>' +
-      '<div class="btn-option-row">' +
-      '<span class="btn-option-label">対象：</span>' +
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.libId = this.value">' + libOpts.replace('value="' + (btn.libEffect.libId || '') + '"', 'value="' + (btn.libEffect.libId || '') + '" selected') + '</select>' +
-      '<span class="btn-option-label">変化：</span>' +
-      '<input type="number" class="btn-option-input-sm" placeholder="例：+1" value="' + (btn.libEffect.change || 0) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.change = parseInt(this.value)">' +
-      '</div>' +
-      '<div class="btn-option-row">' +
-      '<span class="btn-option-hint">結果分岐：値が</span>' +
-      '<input type="number" class="btn-option-input-sm" placeholder="例：5" value="' + (btn.libEffect.branchMin || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.branchMin = this.value">' +
-      '<span class="btn-option-hint">以上なら</span>' +
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.branchMinScene = this.value">' + sceneOpts + '</select>' +
-      '<span class="btn-option-hint">未満なら</span>' +
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].libEffect.branchElseScene = this.value">' + sceneOpts + '</select>' +
-      '</div>' +
-      '<div class="btn-section-title">IF条件（表示条件）</div>' +
-      '<div class="btn-option-row">' +
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifCondition.type = this.value; renderTree()">' + ifOptions + '</select>' +
-      (btn.ifCondition.type === 'flag' ?
-        '<input type="text" class="btn-option-input" placeholder="必要なタグ名" value="' + (btn.ifCondition.tag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifCondition.tag = this.value">' : '') +
-      (btn.ifCondition.type === 'dice' ?
-        '<input type="number" class="btn-option-input-sm" placeholder="最低値" value="' + (btn.ifCondition.diceMin || 1) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].ifCondition.diceMin = parseInt(this.value)">' : '') +
-      '</div>' +
-      '<div class="btn-section-title">ダイス → フラグ</div>' +
-      '<div class="btn-option-row">' +
-      '<span class="btn-option-label">ダイス：</span>' +
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.libId = this.value">' + diceOpts + '</select>' +
-      '<span class="btn-option-label">以上：</span>' +
-      '<input type="number" class="btn-option-input-sm" placeholder="例：15" value="' + (btn.diceFlag.min || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.min = parseInt(this.value)">' +
-      '</div>' +
-      '<div class="btn-option-row">' +
-      '<span class="btn-option-hint">成功フラグ：</span>' +
-      '<input type="text" class="btn-option-input" placeholder="例：成功" value="' + (btn.diceFlag.successFlag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.successFlag = this.value">' +
-      '<span class="btn-option-hint">失敗フラグ：</span>' +
-      '<input type="text" class="btn-option-input" placeholder="例：失敗" value="' + (btn.diceFlag.failFlag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].diceFlag.failFlag = this.value">' +
-      '</div>' +
-      '</div>' +
-      '</div>';
-  }).join('');
-
-  card.innerHTML =
-    '<div class="scene-header">' +
-    '<span class="scene-label">' + scene.id + '</span>' +
-    '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
-    '<button class="delete-scene-btn" onclick="deleteScene(\'' + scene.id + '\')">✕</button>' +
-    '</div>' +
-    '<textarea placeholder="ここにシーンのテキストを入力..." oninput="updateSceneText(\'' + scene.id + '\', this.value)">' + scene.text + '</textarea>' +
-    '<div class="lib-hint">' + hintText + '</div>' +
+    '<textarea placeholder="シーンのテキストを入力...&#10;ヒント：' + hintText + '" oninput="updateSceneText(\'' + scene.id + '\', this.value)">' + scene.text + '</textarea>' +
     '<div class="buttons-list">' + buttonsHTML + '</div>' +
     '<div class="scene-actions">' +
     '<button class="add-btn" onclick="addButton(\'' + scene.id + '\')">＋ ボタン追加</button>' +
@@ -514,10 +658,6 @@ function createNormalSceneCard(scene) {
     '</div>';
 
   return card;
-}
-
-function createSceneCard(scene) {
-  return currentMode === 'simple' ? createSimpleSceneCard(scene) : createNormalSceneCard(scene);
 }
 
 async function uploadGame() {
@@ -539,7 +679,9 @@ async function uploadGame() {
     uid: currentUser.uid,
     thumbnail: thumbnailData || '',
     mode: currentMode,
+    gameMode: currentGameMode,
     libraries: JSON.parse(JSON.stringify(libraries)),
+    customVars: JSON.parse(JSON.stringify(customVars)),
     story: JSON.parse(JSON.stringify(scenes)),
     playCount: 0,
     createdAt: new Date().toISOString()
@@ -551,6 +693,50 @@ async function uploadGame() {
     document.querySelectorAll('.tab-btn')[0].click();
   } catch (e) {
     alert('エラーが発生しました：' + e.message);
+  }
+}
+
+async function postNotice() {
+  if (!currentUser || currentUser.uid !== ADMIN_UID) return;
+  const title = prompt('お知らせのタイトルを入力');
+  if (!title) return;
+  const body = prompt('お知らせの本文を入力');
+  if (!body) return;
+  try {
+    await addDoc(collection(db, 'notices'), {
+      title,
+      body,
+      createdAt: new Date().toISOString()
+    });
+    alert('お知らせを投稿しました！');
+    loadNotices();
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
+async function loadNotices() {
+  const area = document.getElementById('notice-area');
+  if (!area) return;
+  try {
+    const q = query(collection(db, 'notices'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const notices = [];
+    snapshot.forEach(d => notices.push({ id: d.id, ...d.data() }));
+    if (notices.length === 0) {
+      area.style.display = 'none';
+      return;
+    }
+    area.style.display = 'block';
+    area.innerHTML = notices.map(n =>
+      '<div class="notice-item">' +
+      '<div class="notice-title">' + n.title + '</div>' +
+      '<div class="notice-body">' + n.body + '</div>' +
+      '<div class="notice-date">' + new Date(n.createdAt).toLocaleDateString('ja-JP') + '</div>' +
+      '</div>'
+    ).join('');
+  } catch (e) {
+    area.style.display = 'none';
   }
 }
 
@@ -582,9 +768,7 @@ async function loadGames() {
     const q = query(collection(db, 'games'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     const games = [];
-    snapshot.forEach(doc => {
-      games.push({ id: doc.id, ...doc.data() });
-    });
+    snapshot.forEach(d => games.push({ id: d.id, ...d.data() }));
     list.innerHTML = '';
     if (games.length === 0) {
       list.innerHTML = '<p class="empty">まだゲームがありません。作るタブからゲームを作ってみよう！</p>';
@@ -605,16 +789,13 @@ function filterGenre(genre) {
   applyFilter();
 }
 
-function searchGames() {
-  applyFilter();
-}
+function searchGames() { applyFilter(); }
 
 function applyFilter() {
   const q = document.getElementById('search-input').value.toLowerCase();
   const games = window._allGames || [];
   const list = document.getElementById('game-list');
   list.innerHTML = '';
-
   const filtered = games.filter(game => {
     const genres = game.genres || [game.genre];
     const matchGenre = currentFilterGenre === 'all' || genres.includes(currentFilterGenre);
@@ -624,7 +805,6 @@ function applyFilter() {
       genres.some(g => g.toLowerCase().includes(q));
     return matchGenre && matchSearch;
   });
-
   if (filtered.length === 0) {
     list.innerHTML = '<p class="empty">該当するゲームが見つかりませんでした</p>';
     return;
@@ -637,6 +817,7 @@ window.startCreate = startCreate;
 window.backToModeSelect = backToModeSelect;
 window.updateGenre = updateGenre;
 window.updateGenreSelection = updateGenreSelection;
+window.selectGameMode = selectGameMode;
 window.previewThumbnail = previewThumbnail;
 window.addScene = addScene;
 window.deleteScene = deleteScene;
@@ -647,6 +828,8 @@ window.updateSceneText = updateSceneText;
 window.updateSceneTitle = updateSceneTitle;
 window.addLibrary = addLibrary;
 window.deleteLibrary = deleteLibrary;
+window.addCustomVar = addCustomVar;
+window.removeCustomVar = removeCustomVar;
 window.uploadGame = uploadGame;
 window.filterGenre = filterGenre;
 window.searchGames = searchGames;
@@ -660,5 +843,11 @@ window.loginWithEmail = loginWithEmail;
 window.registerWithEmail = registerWithEmail;
 window.logout = logout;
 window.toggleUserMenu = toggleUserMenu;
+window.toggleButtonTab = toggleButtonTab;
+window.addFlagGive = addFlagGive;
+window.removeFlagGive = removeFlagGive;
+window.addIfCondition = addIfCondition;
+window.removeIfCondition = removeIfCondition;
+window.postNotice = postNotice;
 
 loadGames();

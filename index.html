@@ -17,7 +17,8 @@
       <div id="user-info" style="display:none">
         <div class="user-menu">
           <span id="user-name" onclick="toggleUserMenu()">
-            <span class="user-avatar"></span>
+            <img id="header-avatar" src="" alt="" style="display:none">
+            <div id="header-avatar-placeholder" class="header-avatar-placeholder"></div>
             <span id="user-name-text"></span>
             <span class="user-caret">▾</span>
           </span>
@@ -64,6 +65,10 @@
   </div>
 
   <main>
+
+    <div id="notice-area" style="display:none"></div>
+    <button id="admin-notice-btn" style="display:none" onclick="postNotice()" class="admin-btn">＋ お知らせを投稿</button>
+
     <div id="play-tab">
       <div id="search-bar">
         <input type="text" id="search-input" placeholder="タイトル・作者名・ジャンルで検索..." oninput="searchGames()">
@@ -99,17 +104,18 @@
         <div class="mode-cards">
           <div class="mode-card" onclick="startCreate('simple')">
             <h3>シンプルモード</h3>
-            <p>テキストと選択肢だけのシンプルなゲームが作れます</p>
+            <p>テキストと選択肢だけ。初めての方におすすめ！</p>
           </div>
           <div class="mode-card" onclick="startCreate('normal')">
             <h3>普通モード</h3>
-            <p>フラグ・ライブラリ・IF条件など全機能が使えます</p>
+            <p>フラグ・ライブラリ・変数など全機能が使えます</p>
           </div>
         </div>
       </div>
 
       <div id="game-form" style="display:none">
         <button class="back-form-btn" onclick="backToModeSelect()">← 選択画面に戻る</button>
+
         <div id="form-header">
           <div class="form-row">
             <label>タイトル</label>
@@ -149,17 +155,46 @@
 
         <div id="library-panel">
           <h3>要素ライブラリ</h3>
+          <p class="lib-hint">選択肢を押したときに変化するパラメータを追加できます。{ ライブラリ名 } と書くとテキストに値を表示できます。</p>
+
+          <div class="game-mode-select">
+            <label>ゲームモード（任意）</label>
+            <div class="game-mode-btns">
+              <button class="game-mode-btn active" onclick="selectGameMode('none')">なし</button>
+              <button class="game-mode-btn" onclick="selectGameMode('rpg')">⚔️ RPG</button>
+              <button class="game-mode-btn" onclick="selectGameMode('trpg')">🎲 TRPG</button>
+              <button class="game-mode-btn" onclick="selectGameMode('quiz')">📊 クイズ・診断</button>
+            </div>
+          </div>
+
           <div id="library-list"></div>
           <div id="library-buttons">
-            <button onclick="addLibrary('affection')">好感度を追加</button>
-            <button onclick="addLibrary('dice')">ダイスを追加</button>
-            <button onclick="addLibrary('saikoro')">さいころを追加</button>
-            <button onclick="addLibrary('san')">SAN値を追加</button>
-            <button onclick="addLibrary('counter')">カウンターを追加</button>
-            <button onclick="addLibrary('money')">所持金を追加</button>
-            <button onclick="addLibrary('time')">時間・日数を追加</button>
-            <button onclick="addLibrary('flag')">フラグを追加</button>
-            <button onclick="addLibrary('status')">天気・状態を追加</button>
+            <button onclick="addLibrary('affection')">好感度</button>
+            <button onclick="addLibrary('dice')">ダイス</button>
+            <button onclick="addLibrary('saikoro')">さいころ</button>
+            <button onclick="addLibrary('san')">SAN値</button>
+            <button onclick="addLibrary('counter')">カウンター</button>
+            <button onclick="addLibrary('money')">所持金</button>
+            <button onclick="addLibrary('time')">時間・日数</button>
+            <button onclick="addLibrary('flag')">フラグ</button>
+            <button onclick="addLibrary('status')">状態</button>
+            <button onclick="addLibrary('hp')">HP</button>
+            <button onclick="addLibrary('mp')">MP</button>
+            <button onclick="addLibrary('level')">レベル</button>
+            <button onclick="addLibrary('exp')">EXP</button>
+            <button onclick="addLibrary('inventory')">アイテム</button>
+            <button onclick="addLibrary('skill')">技能値</button>
+            <button onclick="addLibrary('charsheet')">キャラシート</button>
+            <button onclick="addLibrary('score')">スコア</button>
+            <button onclick="addLibrary('timer')">タイマー</button>
+            <button onclick="addLibrary('result')">結果表示</button>
+          </div>
+
+          <div class="custom-var-section">
+            <h4>オリジナル変数</h4>
+            <p class="lib-hint">シナリオ限定の独自変数を作れます。{ 変数名 } でテキストに表示できます。</p>
+            <div id="custom-var-list"></div>
+            <button class="add-btn" onclick="addCustomVar()">＋ オリジナル変数を追加</button>
           </div>
         </div>
 
@@ -171,6 +206,7 @@
         <button id="upload-btn" onclick="uploadGame()">アップロード</button>
       </div>
     </div>
+
   </main>
 
   <script type="module" src="index.js"></script>
