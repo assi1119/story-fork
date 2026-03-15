@@ -253,12 +253,7 @@ function addScene() {
 }
 ```
 
-修正したら `Ctrl + S` で保存してGitHubにプッシュしてください👇
-```
-cd ~/Desktop/分岐ゲーム
-git add .
-git commit -m "fix scene numbering"
-git push origin main
+
 
 function addButton(sceneId) {
   const scene = scenes[sceneId];
