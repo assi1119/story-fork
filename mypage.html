@@ -53,10 +53,15 @@
           <div class="mypage-avatar"></div>
           <div>
             <h2 id="mypage-username"></h2>
+            <p id="mypage-at-name" class="mypage-at-name"></p>
             <p id="mypage-email" class="mypage-email"></p>
+            <div id="username-form" style="display:none">
+              <input type="text" id="username-input" placeholder="ユーザー名を設定（@マークで表示）">
+              <button class="submit-btn" onclick="saveUsername()">設定する</button>
+            </div>
           </div>
           <button class="footer-logout-btn" onclick="logout()">ログアウト</button>
-        </div>
+        </div>>
 
         <div class="mypage-section">
           <h3>自分の作品</h3>

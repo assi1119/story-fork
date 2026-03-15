@@ -1370,3 +1370,25 @@ footer {
   color: #00c896;
   font-weight: 700;
 }
+
+.mypage-at-name {
+  font-size: 14px;
+  color: #00c896;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#username-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+#username-input {
+  padding: 6px 12px;
+  border: 2px solid #b2ead8;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'メイリオ', sans-serif;
+}

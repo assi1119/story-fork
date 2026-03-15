@@ -1,5 +1,5 @@
-import { db, auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged } from './firebase.js';
-import { collection, query, where, getDocs, orderBy, doc, deleteDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db, auth, signOut, onAuthStateChanged } from './firebase.js';
+import { collection, query, where, getDocs, doc, deleteDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 let currentUser = null;
 
@@ -13,6 +13,8 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('mypage-main').style.display = 'block';
     document.getElementById('mypage-username').textContent = user.displayName || 'ユーザー';
     document.getElementById('mypage-email').textContent = user.email;
+
+    await loadUsername(user.uid);
     await loadMyGames();
     await loadPlayHistory();
   } else {
@@ -22,6 +24,33 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('mypage-main').style.display = 'none';
   }
 });
+
+async function loadUsername(uid) {
+  try {
+    const docSnap = await getDoc(doc(db, 'users', uid));
+    if (docSnap.exists() && docSnap.data().username) {
+      document.getElementById('mypage-at-name').textContent = '@' + docSnap.data().username;
+    } else {
+      document.getElementById('mypage-at-name').textContent = '';
+      document.getElementById('username-form').style.display = 'block';
+    }
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+async function saveUsername() {
+  const username = document.getElementById('username-input').value.trim();
+  if (!username) { alert('ユーザー名を入力してください'); return; }
+  try {
+    await setDoc(doc(db, 'users', currentUser.uid), { username });
+    document.getElementById('mypage-at-name').textContent = '@' + username;
+    document.getElementById('username-form').style.display = 'none';
+    alert('ユーザー名を設定しました！');
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
 
 function toggleUserMenu() {
   const dropdown = document.getElementById('user-dropdown');
@@ -37,10 +66,11 @@ async function loadMyGames() {
   const list = document.getElementById('my-games');
   list.innerHTML = '<p class="empty">読み込み中...</p>';
   try {
-    const q = query(collection(db, 'games'), where('uid', '==', currentUser.uid), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'games'), where('uid', '==', currentUser.uid));
     const snapshot = await getDocs(q);
     const games = [];
     snapshot.forEach(doc => games.push({ id: doc.id, ...doc.data() }));
+    games.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     list.innerHTML = '';
     if (games.length === 0) {
       list.innerHTML = '<p class="empty">まだゲームを作っていません</p>';
@@ -87,14 +117,11 @@ async function loadPlayHistory() {
   const list = document.getElementById('play-history');
   list.innerHTML = '<p class="empty">読み込み中...</p>';
   try {
-    const q = query(
-      collection(db, 'playHistory'),
-      where('uid', '==', currentUser.uid),
-      orderBy('playedAt', 'desc')
-    );
+    const q = query(collection(db, 'playHistory'), where('uid', '==', currentUser.uid));
     const snapshot = await getDocs(q);
     const history = [];
     snapshot.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+    history.sort((a, b) => new Date(b.playedAt) - new Date(a.playedAt));
     list.innerHTML = '';
     if (history.length === 0) {
       list.innerHTML = '<p class="empty">まだプレイ履歴がありません</p>';
@@ -117,3 +144,4 @@ async function loadPlayHistory() {
 window.toggleUserMenu = toggleUserMenu;
 window.logout = logout;
 window.deleteGame = deleteGame;
+window.saveUsername = saveUsername;
