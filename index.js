@@ -59,6 +59,19 @@ function toggleUserMenu() {
   dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
+function toggleSideMenu() {
+  const menu = document.getElementById('side-menu');
+  const overlay = document.getElementById('side-overlay');
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    menu.classList.remove('open');
+    overlay.classList.remove('open');
+  } else {
+    menu.classList.add('open');
+    overlay.classList.add('open');
+  }
+}
+
 document.addEventListener('click', e => {
   const menu = document.getElementById('user-name');
   const dropdown = document.getElementById('user-dropdown');
@@ -130,8 +143,7 @@ async function logout() {
 function showTab(tab) {
   document.getElementById('play-tab').style.display = tab === 'play' ? 'block' : 'none';
   document.getElementById('create-tab').style.display = tab === 'create' ? 'block' : 'none';
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  document.querySelectorAll('.tab-btn, .side-menu-item').forEach(b => b.classList.remove('active'));
   if (tab === 'play') {
     const title = document.getElementById('game-title').value;
     const desc = document.getElementById('game-description').value;
@@ -216,7 +228,7 @@ function addScene() {
   return id;
 }
 
- function deleteScene(sceneId) {
+function deleteScene(sceneId) {
   if (Object.keys(scenes).length <= 1) {
     alert('最低1つのシーンが必要です');
     return;
@@ -228,8 +240,7 @@ function addScene() {
   const idMap = {};
 
   oldIds.forEach((oldId, index) => {
-    const newId = 'scene' + (index + 1);
-    idMap[oldId] = newId;
+    idMap[oldId] = 'scene' + (index + 1);
   });
 
   oldIds.forEach(oldId => {
@@ -251,9 +262,6 @@ function addScene() {
   window.scenes = scenes;
   renderTree();
 }
-```
-
-
 
 function addButton(sceneId) {
   const scene = scenes[sceneId];
@@ -704,19 +712,6 @@ async function postNotice() {
   }
 }
 
-function toggleSideMenu() {
-  const menu = document.getElementById('side-menu');
-  const overlay = document.getElementById('side-overlay');
-  const isOpen = menu.classList.contains('open');
-  if (isOpen) {
-    menu.classList.remove('open');
-    overlay.classList.remove('open');
-  } else {
-    menu.classList.add('open');
-    overlay.classList.add('open');
-  }
-}
-
 async function editNotice(noticeId, currentTitle, currentBody) {
   const title = prompt('タイトルを編集', currentTitle);
   if (!title) return;
@@ -874,13 +869,13 @@ window.loginWithEmail = loginWithEmail;
 window.registerWithEmail = registerWithEmail;
 window.logout = logout;
 window.toggleUserMenu = toggleUserMenu;
+window.toggleSideMenu = toggleSideMenu;
 window.toggleButtonTab = toggleButtonTab;
 window.addFlagGive = addFlagGive;
 window.removeFlagGive = removeFlagGive;
 window.addIfCondition = addIfCondition;
 window.removeIfCondition = removeIfCondition;
 window.postNotice = postNotice;
-window.toggleSideMenu = toggleSideMenu;
 window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
 
