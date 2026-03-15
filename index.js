@@ -1,5 +1,5 @@
 import { db, auth, googleProvider, collection, addDoc, getDocs, query, orderBy, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from './firebase.js';
-import { doc, updateDoc, deleteDoc, increment, getDoc, setDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, updateDoc, deleteDoc, getDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const ADMIN_UID = 'AQtwwjYoTwMbCsrsMI0PA69XE443';
 
@@ -237,15 +237,12 @@ function deleteScene(sceneId) {
     return;
   }
   delete scenes[sceneId];
-
   const oldIds = Object.keys(scenes);
   const newScenes = {};
   const idMap = {};
-
   oldIds.forEach((oldId, index) => {
     idMap[oldId] = 'scene' + (index + 1);
   });
-
   oldIds.forEach(oldId => {
     const scene = scenes[oldId];
     const newId = idMap[oldId];
@@ -257,9 +254,9 @@ function deleteScene(sceneId) {
         if (btn.libEffect.branchElseScene) btn.libEffect.branchElseScene = idMap[btn.libEffect.branchElseScene] || '';
       }
     });
+    if (scene.sceneConditionFail) scene.sceneConditionFail = idMap[scene.sceneConditionFail] || '';
     newScenes[newId] = scene;
   });
-
   scenes = newScenes;
   sceneCount = Object.keys(scenes).length;
   window.scenes = scenes;
@@ -272,12 +269,8 @@ function addButton(sceneId) {
   if (!label) { alert('ボタンはZまで追加できます'); return; }
   const nextId = addScene();
   scene.buttons.push({
-    label,
-    color: '#00c896',
-    next: nextId,
-    flagGive: [],
-    ifConditions: [],
-    ifMode: 'all',
+    label, color: '#00c896', next: nextId, flagGive: [],
+    ifConditions: [], ifMode: 'all',
     libEffect: { libId: '', change: 0, branchMin: '', branchMinScene: '', branchElseScene: '' },
     diceFlag: { libId: '', min: 1, successFlag: '', failFlag: '' },
     varEffect: { varName: '', change: 0 }
@@ -295,13 +288,8 @@ function updateButtonColor(sceneId, btnIndex, color) {
   renderTree();
 }
 
-function updateSceneText(sceneId, value) {
-  scenes[sceneId].text = value;
-}
-
-function updateSceneTitle(sceneId, value) {
-  scenes[sceneId].title = value;
-}
+function updateSceneText(sceneId, value) { scenes[sceneId].text = value; }
+function updateSceneTitle(sceneId, value) { scenes[sceneId].title = value; }
 
 function toggleButtonTab(sceneId, btnIndex, tab) {
   const key = sceneId + '_' + btnIndex;
@@ -375,7 +363,6 @@ function renderCustomVars() {
 
 function addLibrary(type) {
   const lib = { type, id: 'lib' + Date.now() };
-
   if (type === 'affection') {
     const name = prompt('好感度の名前を入力（例：アリス 好感度）');
     if (!name) return;
@@ -472,7 +459,6 @@ function addLibrary(type) {
     lib.name = name; lib.charName = name; lib.image = '';
     lib.expression = '通常'; lib.expressions = ['通常']; lib.value = 0;
   }
-
   libraries.push(lib);
   renderLibrary();
 }
@@ -541,6 +527,42 @@ function createSceneCard(scene) {
   const hintText = allVarNames.length > 0
     ? '文章に ' + allVarNames.join(' ') + ' と書くと値が表示されます'
     : '{ 変数名 } と書くと値が表示されます';
+
+  const sceneConditions = scene.sceneConditions || [];
+  const sceneCondMode = scene.sceneConditionMode || 'all';
+  const sceneCondFail = scene.sceneConditionFail || '';
+
+  const sceneCondHTML = sceneConditions.map((cond, ci) =>
+    '<div class="if-condition-row">' +
+    '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].type = this.value; renderTree()">' +
+    '<option value="flag"' + (cond.type === 'flag' ? ' selected' : '') + '>タグを持っている</option>' +
+    '<option value="var"' + (cond.type === 'var' ? ' selected' : '') + '>変数が○以上</option>' +
+    '</select>' +
+    (cond.type === 'flag' ?
+      '<input type="text" class="btn-option-input" placeholder="タグ名" value="' + (cond.tag || '') + '" oninput="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].tag = this.value">' : '') +
+    (cond.type === 'var' ?
+      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].varName = this.value">' + getVarOptions() + '</select>' +
+      '<input type="number" class="btn-option-input-sm" placeholder="最低値" value="' + (cond.varMin || 0) + '" oninput="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].varMin = parseInt(this.value)">' : '') +
+    '<button class="delete-btn" onclick="removeSceneCondition(\'' + scene.id + '\', ' + ci + ')">✕</button>' +
+    '</div>'
+  ).join('');
+
+  const sceneCondPanel = currentMode === 'normal' ?
+    '<div class="scene-condition-panel">' +
+    '<div class="scene-condition-title">🔒 このシーンの表示条件</div>' +
+    '<div class="btn-option-row"><span class="btn-option-label">条件モード：</span>' +
+    '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditionMode = this.value">' +
+    '<option value="all"' + (sceneCondMode === 'all' ? ' selected' : '') + '>全て満たす（AND）</option>' +
+    '<option value="any"' + (sceneCondMode === 'any' ? ' selected' : '') + '>どれか満たす（OR）</option>' +
+    '</select></div>' +
+    sceneCondHTML +
+    '<button class="add-btn" onclick="addSceneCondition(\'' + scene.id + '\')">＋ 条件を追加</button>' +
+    (sceneConditions.length > 0 ?
+      '<div class="btn-option-row"><span class="btn-option-label">条件未達成時：</span>' +
+      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditionFail = this.value">' +
+      getSceneOptions().replace('value="' + sceneCondFail + '"', 'value="' + sceneCondFail + '" selected') +
+      '</select></div>' : '') +
+    '</div>' : '';
 
   let buttonsHTML = '';
 
@@ -658,42 +680,6 @@ function createSceneCard(scene) {
     }).join('');
   }
 
-  const sceneConditions = scene.sceneConditions || [];
-  const sceneCondMode = scene.sceneConditionMode || 'all';
-  const sceneCondFail = scene.sceneConditionFail || '';
-
-  const sceneCondHTML = sceneConditions.map((cond, ci) =>
-    '<div class="if-condition-row">' +
-    '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].type = this.value; renderTree()">' +
-    '<option value="flag"' + (cond.type === 'flag' ? ' selected' : '') + '>タグを持っている</option>' +
-    '<option value="var"' + (cond.type === 'var' ? ' selected' : '') + '>変数が○以上</option>' +
-    '</select>' +
-    (cond.type === 'flag' ?
-      '<input type="text" class="btn-option-input" placeholder="タグ名" value="' + (cond.tag || '') + '" oninput="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].tag = this.value">' : '') +
-    (cond.type === 'var' ?
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].varName = this.value">' + getVarOptions() + '</select>' +
-      '<input type="number" class="btn-option-input-sm" placeholder="最低値" value="' + (cond.varMin || 0) + '" oninput="scenes[\'' + scene.id + '\'].sceneConditions[' + ci + '].varMin = parseInt(this.value)">' : '') +
-    '<button class="delete-btn" onclick="removeSceneCondition(\'' + scene.id + '\', ' + ci + ')">✕</button>' +
-    '</div>'
-  ).join('');
-
-  const sceneCondPanel = currentMode === 'normal' ?
-    '<div class="scene-condition-panel">' +
-    '<div class="scene-condition-title">🔒 このシーンの表示条件</div>' +
-    '<div class="btn-option-row"><span class="btn-option-label">条件モード：</span>' +
-    '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditionMode = this.value">' +
-    '<option value="all"' + (sceneCondMode === 'all' ? ' selected' : '') + '>全て満たす（AND）</option>' +
-    '<option value="any"' + (sceneCondMode === 'any' ? ' selected' : '') + '>どれか満たす（OR）</option>' +
-    '</select></div>' +
-    sceneCondHTML +
-    '<button class="add-btn" onclick="addSceneCondition(\'' + scene.id + '\')">＋ 条件を追加</button>' +
-    (sceneConditions.length > 0 ?
-      '<div class="btn-option-row"><span class="btn-option-label">条件未達成時：</span>' +
-      '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].sceneConditionFail = this.value">' +
-      getSceneOptions().replace('value="' + sceneCondFail + '"', 'value="' + sceneCondFail + '" selected') +
-      '</select></div>' : '') +
-    '</div>' : '';
-
   card.innerHTML =
     '<div class="scene-header">' +
     '<span class="scene-label">' + scene.id + '</span>' +
@@ -721,25 +707,38 @@ async function uploadGame() {
   if (currentGenre.length === 0) { alert('ジャンルを1つ以上選択してください'); return; }
   if (Object.keys(scenes).length === 0) { alert('シーンを追加してください'); return; }
 
+  const game = {
+    title, genres: currentGenre, genre: currentGenre[0],
+    description, author, uid: currentUser.uid,
+    thumbnail: thumbnailData || '', mode: currentMode,
+    libraries: JSON.parse(JSON.stringify(libraries)),
+    customVars: JSON.parse(JSON.stringify(customVars)),
+    story: JSON.parse(JSON.stringify(scenes)),
+    playCount: 0, createdAt: new Date().toISOString()
+  };
+
+  try {
+    await addDoc(collection(db, 'games'), game);
+    alert('アップロードしました！');
+    document.querySelectorAll('.tab-btn')[0].click();
+  } catch (e) {
+    alert('エラーが発生しました：' + e.message);
+  }
+}
+
 async function saveDraft() {
   if (!currentUser) { alert('セーブするにはログインが必要です'); return; }
   const title = document.getElementById('game-title').value || '無題の下書き';
-
   const draft = {
-    title,
-    genres: currentGenre,
-    genre: currentGenre[0] || '',
+    title, genres: currentGenre, genre: currentGenre[0] || '',
     description: document.getElementById('game-description').value,
     author: currentUser.displayName || currentUser.email,
-    uid: currentUser.uid,
-    thumbnail: thumbnailData || '',
-    mode: currentMode,
+    uid: currentUser.uid, thumbnail: thumbnailData || '', mode: currentMode,
     libraries: JSON.parse(JSON.stringify(libraries)),
     customVars: JSON.parse(JSON.stringify(customVars)),
     story: JSON.parse(JSON.stringify(scenes)),
     savedAt: new Date().toISOString()
   };
-
   try {
     await addDoc(collection(db, 'drafts'), draft);
     alert('下書きを保存しました！');
@@ -756,21 +755,16 @@ async function loadDrafts() {
     const drafts = [];
     snapshot.forEach(d => drafts.push({ id: d.id, ...d.data() }));
     drafts.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
-
     if (drafts.length === 0) { alert('保存された下書きがありません'); return; }
-
     const options = drafts.map((d, i) =>
       i + ': ' + d.title + '（' + new Date(d.savedAt).toLocaleDateString('ja-JP') + '）'
     ).join('\n');
-
     const choice = prompt('読み込む下書きの番号を入力してください：\n' + options);
     if (choice === null) return;
     const index = parseInt(choice);
     if (isNaN(index) || index < 0 || index >= drafts.length) { alert('無効な番号です'); return; }
-
     const draft = drafts[index];
     if (!confirm('「' + draft.title + '」を読み込みますか？\n現在の作業内容は失われます。')) return;
-
     currentMode = draft.mode || 'simple';
     currentGenre = draft.genres || [draft.genre] || [];
     libraries = draft.libraries || [];
@@ -778,25 +772,21 @@ async function loadDrafts() {
     scenes = draft.story || {};
     sceneCount = Object.keys(scenes).length;
     thumbnailData = draft.thumbnail || null;
-
     document.getElementById('mode-select').style.display = 'none';
     document.getElementById('game-form').style.display = 'block';
     document.getElementById('game-title').value = draft.title || '';
     document.getElementById('game-description').value = draft.description || '';
     document.getElementById('game-author').value = draft.author || '';
     document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
-
     document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
       c.checked = currentGenre.includes(c.value);
     });
     document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
-
     if (thumbnailData) {
       const preview = document.getElementById('thumbnail-preview');
       preview.src = thumbnailData;
       preview.style.display = 'block';
     }
-
     renderLibrary();
     renderCustomVars();
     renderTree();
@@ -807,31 +797,6 @@ async function loadDrafts() {
   }
 }
 
-  const game = {
-    title,
-    genres: currentGenre,
-    genre: currentGenre[0],
-    description,
-    author,
-    uid: currentUser.uid,
-    thumbnail: thumbnailData || '',
-    mode: currentMode,
-    libraries: JSON.parse(JSON.stringify(libraries)),
-    customVars: JSON.parse(JSON.stringify(customVars)),
-    story: JSON.parse(JSON.stringify(scenes)),
-    playCount: 0,
-    createdAt: new Date().toISOString()
-  };
-
-  try {
-    await addDoc(collection(db, 'games'), game);
-    alert('アップロードしました！');
-    document.querySelectorAll('.tab-btn')[0].click();
-  } catch (e) {
-    alert('エラーが発生しました：' + e.message);
-  }
-}
-
 async function postNotice() {
   if (!currentUser || currentUser.uid !== ADMIN_UID) return;
   const title = prompt('お知らせのタイトルを入力');
@@ -839,9 +804,7 @@ async function postNotice() {
   const body = prompt('お知らせの本文を入力');
   if (!body) return;
   try {
-    await addDoc(collection(db, 'notices'), {
-      title, body, createdAt: new Date().toISOString()
-    });
+    await addDoc(collection(db, 'notices'), { title, body, createdAt: new Date().toISOString() });
     alert('お知らせを投稿しました！');
     loadNotices();
   } catch (e) {
@@ -896,8 +859,7 @@ async function loadNotices() {
         '<button class="notice-edit-btn" onclick="editNotice(\'' + n.id + '\', \'' + n.title.replace(/'/g, "\\'") + '\', \'' + n.body.replace(/'/g, "\\'") + '\')">編集</button>' +
         '<button class="notice-delete-btn" onclick="deleteNotice(\'' + n.id + '\')">削除</button>' +
         '</div>' : '') +
-      '</div>' +
-      '</div>'
+      '</div></div>'
     ).join('');
   } catch (e) {
     area.style.display = 'none';
@@ -994,6 +956,8 @@ window.deleteLibrary = deleteLibrary;
 window.addCustomVar = addCustomVar;
 window.removeCustomVar = removeCustomVar;
 window.uploadGame = uploadGame;
+window.saveDraft = saveDraft;
+window.loadDrafts = loadDrafts;
 window.filterGenre = filterGenre;
 window.searchGames = searchGames;
 window.scenes = scenes;
@@ -1012,12 +976,10 @@ window.addFlagGive = addFlagGive;
 window.removeFlagGive = removeFlagGive;
 window.addIfCondition = addIfCondition;
 window.removeIfCondition = removeIfCondition;
+window.addSceneCondition = addSceneCondition;
+window.removeSceneCondition = removeSceneCondition;
 window.postNotice = postNotice;
 window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
-window.saveDraft = saveDraft;
-window.loadDrafts = loadDrafts;
-window.addSceneCondition = addSceneCondition;
-window.removeSceneCondition = removeSceneCondition;
 
 loadGames();
