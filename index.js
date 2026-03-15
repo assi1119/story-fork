@@ -216,21 +216,49 @@ function addScene() {
   return id;
 }
 
-function deleteScene(sceneId) {
+ function deleteScene(sceneId) {
   if (Object.keys(scenes).length <= 1) {
     alert('最低1つのシーンが必要です');
     return;
   }
   delete scenes[sceneId];
-  Object.values(scenes).forEach(scene => {
+
+  const oldIds = Object.keys(scenes);
+  const newScenes = {};
+  const idMap = {};
+
+  oldIds.forEach((oldId, index) => {
+    const newId = 'scene' + (index + 1);
+    idMap[oldId] = newId;
+  });
+
+  oldIds.forEach(oldId => {
+    const scene = scenes[oldId];
+    const newId = idMap[oldId];
+    scene.id = newId;
     scene.buttons.forEach(btn => {
-      if (!scenes[btn.next]) {
-        btn.next = Object.keys(scenes)[0];
+      btn.next = idMap[btn.next] || Object.keys(idMap)[0];
+      if (btn.libEffect) {
+        if (btn.libEffect.branchMinScene) btn.libEffect.branchMinScene = idMap[btn.libEffect.branchMinScene] || '';
+        if (btn.libEffect.branchElseScene) btn.libEffect.branchElseScene = idMap[btn.libEffect.branchElseScene] || '';
       }
     });
+    newScenes[newId] = scene;
   });
+
+  scenes = newScenes;
+  sceneCount = Object.keys(scenes).length;
+  window.scenes = scenes;
   renderTree();
 }
+```
+
+修正したら `Ctrl + S` で保存してGitHubにプッシュしてください👇
+```
+cd ~/Desktop/分岐ゲーム
+git add .
+git commit -m "fix scene numbering"
+git push origin main
 
 function addButton(sceneId) {
   const scene = scenes[sceneId];
