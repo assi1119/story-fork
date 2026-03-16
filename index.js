@@ -1,5 +1,5 @@
-import { db, auth, googleProvider, collection, addDoc, getDocs, query, orderBy, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from './firebase.js';
-import { doc, updateDoc, deleteDoc, getDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db, auth, googleProvider, collection, addDoc, getDocs, query, orderBy, where, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from './firebase.js';
+import { doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const ADMIN_UID = 'AQtwwjYoTwMbCsrsMI0PA69XE443';
 
@@ -59,7 +59,19 @@ function toggleUserMenu() {
   dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
-
+function toggleSideMenu() {
+  const menu = document.getElementById('side-menu');
+  const overlay = document.getElementById('side-overlay');
+  const isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    menu.classList.remove('open');
+    overlay.classList.remove('open');
+  } else {
+    menu.classList.add('open');
+    overlay.classList.add('open');
+    loadDraftList();
+  }
+}
 
 document.addEventListener('click', e => {
   const menu = document.getElementById('user-name');
@@ -730,57 +742,7 @@ async function saveDraft() {
   };
   try {
     await addDoc(collection(db, 'drafts'), draft);
-    alert('下書きを保存しました！');
-  } catch (e) {
-    alert('エラー：' + e.message);
-  }
-}
-
-async function loadDrafts() {
-  if (!currentUser) { alert('ログインが必要です'); return; }
-  try {
-    const q = query(collection(db, 'drafts'), where('uid', '==', currentUser.uid));
-    const snapshot = await getDocs(q);
-    const drafts = [];
-    snapshot.forEach(d => drafts.push({ id: d.id, ...d.data() }));
-    drafts.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
-    if (drafts.length === 0) { alert('保存された下書きがありません'); return; }
-    const options = drafts.map((d, i) =>
-      i + ': ' + d.title + '（' + new Date(d.savedAt).toLocaleDateString('ja-JP') + '）'
-    ).join('\n');
-    const choice = prompt('読み込む下書きの番号を入力してください：\n' + options);
-    if (choice === null) return;
-    const index = parseInt(choice);
-    if (isNaN(index) || index < 0 || index >= drafts.length) { alert('無効な番号です'); return; }
-    const draft = drafts[index];
-    if (!confirm('「' + draft.title + '」を読み込みますか？\n現在の作業内容は失われます。')) return;
-    currentMode = draft.mode || 'simple';
-    currentGenre = draft.genres || [draft.genre] || [];
-    libraries = draft.libraries || [];
-    customVars = draft.customVars || [];
-    scenes = draft.story || {};
-    sceneCount = Object.keys(scenes).length;
-    thumbnailData = draft.thumbnail || null;
-    document.getElementById('mode-select').style.display = 'none';
-    document.getElementById('game-form').style.display = 'block';
-    document.getElementById('game-title').value = draft.title || '';
-    document.getElementById('game-description').value = draft.description || '';
-    document.getElementById('game-author').value = draft.author || '';
-    document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
-    document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
-      c.checked = currentGenre.includes(c.value);
-    });
-    document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
-    if (thumbnailData) {
-      const preview = document.getElementById('thumbnail-preview');
-      preview.src = thumbnailData;
-      preview.style.display = 'block';
-    }
-    renderLibrary();
-    renderCustomVars();
-    renderTree();
-    window.scenes = scenes;
-    alert('読み込みました！');
+    alert('「' + title + '」を下書き保存しました！');
   } catch (e) {
     alert('エラー：' + e.message);
   }
@@ -829,7 +791,6 @@ async function loadDraftById(draft) {
   scenes = draft.story || {};
   sceneCount = Object.keys(scenes).length;
   thumbnailData = draft.thumbnail || null;
-
   document.getElementById('mode-select').style.display = 'none';
   document.getElementById('game-form').style.display = 'block';
   document.getElementById('create-tab').style.display = 'block';
@@ -838,18 +799,15 @@ async function loadDraftById(draft) {
   document.getElementById('game-description').value = draft.description || '';
   document.getElementById('game-author').value = draft.author || '';
   document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
-
   document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
     c.checked = currentGenre.includes(c.value);
   });
   document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
-
   if (thumbnailData) {
     const preview = document.getElementById('thumbnail-preview');
     preview.src = thumbnailData;
     preview.style.display = 'block';
   }
-
   renderLibrary();
   renderCustomVars();
   renderTree();
@@ -1016,7 +974,8 @@ window.addCustomVar = addCustomVar;
 window.removeCustomVar = removeCustomVar;
 window.uploadGame = uploadGame;
 window.saveDraft = saveDraft;
-window.loadDrafts = loadDrafts;
+window.loadDraftList = loadDraftList;
+window.loadDraftById = loadDraftById;
 window.filterGenre = filterGenre;
 window.searchGames = searchGames;
 window.scenes = scenes;
@@ -1040,8 +999,5 @@ window.removeSceneCondition = removeSceneCondition;
 window.postNotice = postNotice;
 window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
-window.loadDraftList = loadDraftList;
-window.loadDraftById = loadDraftById;
-window.toggleSideMenu = toggleSideMenu;
 
 loadGames();
