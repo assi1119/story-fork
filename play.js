@@ -272,10 +272,8 @@ function applyLibEffect(btn) {
 function applyVarEffect(btn) {
   if (!btn.varEffect || !btn.varEffect.varName) return;
   const varName = btn.varEffect.varName;
-  if (customVarState[varName] !== undefined) {
-    if (typeof customVarState[varName] === 'number') {
-      customVarState[varName] += (btn.varEffect.change || 0);
-    }
+  if (customVarState[varName] !== undefined && typeof customVarState[varName] === 'number') {
+    customVarState[varName] += (btn.varEffect.change || 0);
   }
 }
 
@@ -289,6 +287,23 @@ function applyDiceFlag(btn) {
   const min = parseInt(btn.diceFlag.min) || 1;
   if (result >= min) { if (btn.diceFlag.successFlag) flags.push(btn.diceFlag.successFlag); }
   else { if (btn.diceFlag.failFlag) flags.push(btn.diceFlag.failFlag); }
+}
+
+function resolveExtraDests(btn) {
+  const extraDests = btn.extraDests || [];
+  for (const dest of extraDests) {
+    if (dest.type === 'flag' && dest.flag && flags.includes(dest.flag)) {
+      return dest.next;
+    }
+    if (dest.type === 'random') {
+      if (Math.random() * 100 < (dest.prob || 50)) return dest.next;
+    }
+    if (dest.type === 'var' && dest.varName) {
+      const val = customVarState[dest.varName];
+      if (val !== undefined && val >= dest.varMin) return dest.next;
+    }
+  }
+  return null;
 }
 
 function renderButtons(scene) {
@@ -307,7 +322,8 @@ function renderButtons(scene) {
       applyDiceFlag(btn);
       applyVarEffect(btn);
       const branchScene = applyLibEffect(btn);
-      showScene(branchScene || btn.next);
+      const extraScene = !branchScene ? resolveExtraDests(btn) : null;
+      showScene(branchScene || extraScene || btn.next);
     };
     btns.appendChild(button);
   });

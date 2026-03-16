@@ -82,6 +82,11 @@
     <button id="admin-notice-btn" style="display:none" onclick="postNotice()" class="admin-btn">＋ お知らせを投稿</button>
 
     <div id="play-tab">
+      <div class="sort-bar">
+        <button class="sort-btn active" onclick="setSortOrder('new')">新着順</button>
+        <button class="sort-btn" onclick="setSortOrder('popular')">人気順</button>
+        <button class="sort-btn" onclick="setSortOrder('likes')">いいね順</button>
+      </div>
       <div id="search-bar">
         <input type="text" id="search-input" placeholder="タイトル・作者名・ジャンルで検索..." oninput="searchGames()">
       </div>
@@ -128,6 +133,7 @@
       <div id="game-form" style="display:none">
         <button class="back-form-btn" onclick="backToModeSelect()">← 選択画面に戻る</button>
         <button class="draft-save-btn" onclick="saveDraft()">💾 下書き保存</button>
+
         <div id="form-header">
           <div class="form-row">
             <label>タイトル</label>
@@ -204,10 +210,6 @@
           <div id="scene-tree"></div>
         </div>
 
-        <div class="draft-btns">
-          <button class="draft-save-btn" onclick="saveDraft()">💾 下書き保存</button>
-          <button class="draft-load-btn" onclick="loadDrafts()">📂 下書きを読み込む</button>
-        </div>
         <button id="upload-btn" onclick="uploadGame()">アップロード</button>
       </div>
     </div>

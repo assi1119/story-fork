@@ -1,5 +1,5 @@
 import { db, auth, googleProvider, collection, addDoc, getDocs, query, orderBy, where, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from './firebase.js';
-import { doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, updateDoc, deleteDoc, getDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const ADMIN_UID = 'AQtwwjYoTwMbCsrsMI0PA69XE443';
 
@@ -241,15 +241,14 @@ function deleteScene(sceneId) {
   const oldIds = Object.keys(scenes);
   const newScenes = {};
   const idMap = {};
-  oldIds.forEach((oldId, index) => {
-    idMap[oldId] = 'scene' + (index + 1);
-  });
+  oldIds.forEach((oldId, index) => { idMap[oldId] = 'scene' + (index + 1); });
   oldIds.forEach(oldId => {
     const scene = scenes[oldId];
     const newId = idMap[oldId];
     scene.id = newId;
     scene.buttons.forEach(btn => {
       btn.next = idMap[btn.next] || Object.keys(idMap)[0];
+      if (btn.extraDests) btn.extraDests.forEach(d => { d.next = idMap[d.next] || Object.keys(idMap)[0]; });
       if (btn.libEffect) {
         if (btn.libEffect.branchMinScene) btn.libEffect.branchMinScene = idMap[btn.libEffect.branchMinScene] || '';
         if (btn.libEffect.branchElseScene) btn.libEffect.branchElseScene = idMap[btn.libEffect.branchElseScene] || '';
@@ -274,7 +273,8 @@ function addButton(sceneId) {
     ifConditions: [], ifMode: 'all',
     libEffect: { libId: '', change: 0, branchMin: '', branchMinScene: '', branchElseScene: '' },
     diceFlag: { libId: '', min: 1, successFlag: '', failFlag: '' },
-    varEffect: { varName: '', change: 0 }
+    varEffect: { varName: '', change: 0 },
+    extraDests: []
   });
   renderTree();
 }
@@ -330,6 +330,20 @@ function addSceneCondition(sceneId) {
 
 function removeSceneCondition(sceneId, condIndex) {
   scenes[sceneId].sceneConditions.splice(condIndex, 1);
+  renderTree();
+}
+
+function addExtraDest(sceneId, btnIndex) {
+  if (!scenes[sceneId].buttons[btnIndex].extraDests) scenes[sceneId].buttons[btnIndex].extraDests = [];
+  scenes[sceneId].buttons[btnIndex].extraDests.push({
+    type: 'flag', next: Object.keys(scenes)[0],
+    flag: '', prob: 50, varName: '', varMin: 0
+  });
+  renderTree();
+}
+
+function removeExtraDest(sceneId, btnIndex, destIndex) {
+  scenes[sceneId].buttons[btnIndex].extraDests.splice(destIndex, 1);
   renderTree();
 }
 
@@ -609,6 +623,30 @@ function createSceneCard(scene) {
         '</div>'
       ).join('');
 
+      const extraDestsHTML = (btn.extraDests || []).map((dest, di) =>
+        '<div class="extra-dest-row">' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].type = this.value; renderTree()">' +
+        '<option value="flag"' + (dest.type === 'flag' ? ' selected' : '') + '>フラグ条件</option>' +
+        '<option value="random"' + (dest.type === 'random' ? ' selected' : '') + '>ランダム</option>' +
+        '<option value="var"' + (dest.type === 'var' ? ' selected' : '') + '>変数条件</option>' +
+        '</select>' +
+        (dest.type === 'flag' ?
+          '<input type="text" class="btn-option-input" placeholder="フラグ名" value="' + (dest.flag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].flag = this.value">' : '') +
+        (dest.type === 'random' ?
+          '<input type="number" class="btn-option-input-sm" placeholder="確率%" min="1" max="100" value="' + (dest.prob || 50) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].prob = parseInt(this.value)">' +
+          '<span class="btn-option-hint">%の確率で</span>' : '') +
+        (dest.type === 'var' ?
+          '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].varName = this.value">' + varOpts + '</select>' +
+          '<input type="number" class="btn-option-input-sm" value="' + (dest.varMin || 0) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].varMin = parseInt(this.value)">' +
+          '<span class="btn-option-hint">以上なら</span>' : '') +
+        '<span class="btn-option-hint">→</span>' +
+        '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].next = this.value">' +
+        sceneOpts.replace('value="' + (dest.next || '') + '"', 'value="' + (dest.next || '') + '" selected') +
+        '</select>' +
+        '<button class="delete-btn" onclick="removeExtraDest(\'' + scene.id + '\', ' + i + ', ' + di + ')">✕</button>' +
+        '</div>'
+      ).join('');
+
       return '<div class="btn-block">' +
         '<div class="button-row">' +
         '<span class="btn-label" style="background:' + btn.color + '">【' + btn.label + '】</span>' +
@@ -616,8 +654,10 @@ function createSceneCard(scene) {
         '<select class="btn-option-select" onchange="scenes[\'' + scene.id + '\'].buttons[' + i + '].next = this.value">' +
         sceneOpts.replace('value="' + btn.next + '"', 'value="' + btn.next + '" selected') +
         '</select>' +
+        '<button class="extra-dest-add-btn" onclick="addExtraDest(\'' + scene.id + '\', ' + i + ')" title="条件付き飛び先を追加">＋</button>' +
         '<button class="delete-btn" onclick="deleteButton(\'' + scene.id + '\', ' + i + ')">✕</button>' +
         '</div>' +
+        (extraDestsHTML ? '<div class="extra-dests">' + extraDestsHTML + '</div>' : '') +
         '<div class="btn-tab-bar">' +
         '<button class="btn-tab' + (activeTab === 'color' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'color\')">🎨 色</button>' +
         '<button class="btn-tab' + (activeTab === 'flag' ? ' active' : '') + '" onclick="toggleButtonTab(\'' + scene.id + '\', ' + i + ', \'flag\')">🚩 フラグ</button>' +
@@ -715,7 +755,8 @@ async function uploadGame() {
     libraries: JSON.parse(JSON.stringify(libraries)),
     customVars: JSON.parse(JSON.stringify(customVars)),
     story: JSON.parse(JSON.stringify(scenes)),
-    playCount: 0, createdAt: new Date().toISOString()
+    playCount: 0, likeCount: 0,
+    createdAt: new Date().toISOString()
   };
 
   try {
@@ -741,8 +782,16 @@ async function saveDraft() {
     savedAt: new Date().toISOString()
   };
   try {
-    await addDoc(collection(db, 'drafts'), draft);
-    alert('「' + title + '」を下書き保存しました！');
+    const q = query(collection(db, 'drafts'), where('uid', '==', currentUser.uid), where('title', '==', title));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      if (!confirm('「' + title + '」はすでに保存されています。上書きしますか？')) return;
+      await updateDoc(doc(db, 'drafts', snapshot.docs[0].id), draft);
+      alert('「' + title + '」を上書き保存しました！');
+    } else {
+      await addDoc(collection(db, 'drafts'), draft);
+      alert('「' + title + '」を下書き保存しました！');
+    }
   } catch (e) {
     alert('エラー：' + e.message);
   }
@@ -814,6 +863,39 @@ async function loadDraftById(draft) {
   window.scenes = scenes;
 }
 
+async function toggleLike(gameId) {
+  if (!currentUser) { alert('いいねにはログインが必要です'); return; }
+  const likeRef = doc(db, 'likes', gameId + '_' + currentUser.uid);
+  const likeSnap = await getDoc(likeRef);
+  const gameRef = doc(db, 'games', gameId);
+  if (likeSnap.exists()) {
+    await deleteDoc(likeRef);
+    await updateDoc(gameRef, { likeCount: increment(-1) });
+    document.getElementById('like-btn-' + gameId).classList.remove('liked');
+    const count = parseInt(document.getElementById('like-count-' + gameId).textContent) - 1;
+    document.getElementById('like-count-' + gameId).textContent = count;
+  } else {
+    await addDoc(collection(db, 'likes'), { gameId, uid: currentUser.uid, createdAt: new Date().toISOString() });
+    await updateDoc(gameRef, { likeCount: increment(1) });
+    document.getElementById('like-btn-' + gameId).classList.add('liked');
+    const count = parseInt(document.getElementById('like-count-' + gameId).textContent) + 1;
+    document.getElementById('like-count-' + gameId).textContent = count;
+  }
+}
+
+async function toggleFavorite(gameId) {
+  if (!currentUser) { alert('お気に入りにはログインが必要です'); return; }
+  const favRef = doc(db, 'favorites', gameId + '_' + currentUser.uid);
+  const favSnap = await getDoc(favRef);
+  if (favSnap.exists()) {
+    await deleteDoc(favRef);
+    document.getElementById('fav-btn-' + gameId).classList.remove('favorited');
+  } else {
+    await addDoc(collection(db, 'favorites'), { gameId, uid: currentUser.uid, createdAt: new Date().toISOString() });
+    document.getElementById('fav-btn-' + gameId).classList.add('favorited');
+  }
+}
+
 async function postNotice() {
   if (!currentUser || currentUser.uid !== ADMIN_UID) return;
   const title = prompt('お知らせのタイトルを入力');
@@ -883,7 +965,7 @@ async function loadNotices() {
   }
 }
 
-function renderGameCard(game) {
+async function renderGameCard(game) {
   const card = document.createElement('div');
   card.className = 'game-card';
   const thumb = game.thumbnail
@@ -891,6 +973,18 @@ function renderGameCard(game) {
     : '<div class="game-thumb-placeholder"></div>';
   const genres = game.genres || [game.genre];
   const genreTags = genres.map(g => '<span class="game-genre-tag">' + g + '</span>').join('');
+
+  let isLiked = false;
+  let isFaved = false;
+  if (currentUser) {
+    try {
+      const likeSnap = await getDoc(doc(db, 'likes', game.id + '_' + currentUser.uid));
+      isLiked = likeSnap.exists();
+      const favSnap = await getDoc(doc(db, 'favorites', game.id + '_' + currentUser.uid));
+      isFaved = favSnap.exists();
+    } catch(e) {}
+  }
+
   card.innerHTML =
     thumb +
     '<div class="game-card-body">' +
@@ -899,16 +993,25 @@ function renderGameCard(game) {
     '<p>' + game.description + '</p>' +
     '<p class="game-author">製作者：' + (game.author || '不明') + '</p>' +
     '<p class="game-playcount">プレイ数：' + (game.playCount || 0) + '回</p>' +
-    '<a href="play.html?id=' + game.id + '">遊ぶ</a>' +
+    '<div class="game-card-actions">' +
+    '<a href="play.html?id=' + game.id + '" class="play-link">遊ぶ</a>' +
+    '<button id="like-btn-' + game.id + '" class="like-btn' + (isLiked ? ' liked' : '') + '" onclick="toggleLike(\'' + game.id + '\')">' +
+    '♥ <span id="like-count-' + game.id + '">' + (game.likeCount || 0) + '</span>' +
+    '</button>' +
+    '<button id="fav-btn-' + game.id + '" class="fav-btn' + (isFaved ? ' favorited' : '') + '" onclick="toggleFavorite(\'' + game.id + '\')" title="お気に入り">★</button>' +
+    '</div>' +
     '</div>';
   return card;
 }
+
+let currentSortOrder = 'new';
 
 async function loadGames() {
   const list = document.getElementById('game-list');
   list.innerHTML = '<p class="empty">読み込み中...</p>';
   try {
-    const q = query(collection(db, 'games'), orderBy('createdAt', 'desc'));
+    const sortField = currentSortOrder === 'popular' ? 'playCount' : currentSortOrder === 'likes' ? 'likeCount' : 'createdAt';
+    const q = query(collection(db, 'games'), orderBy(sortField, 'desc'));
     const snapshot = await getDocs(q);
     const games = [];
     snapshot.forEach(d => games.push({ id: d.id, ...d.data() }));
@@ -917,11 +1020,18 @@ async function loadGames() {
       list.innerHTML = '<p class="empty">まだゲームがありません。作るタブからゲームを作ってみよう！</p>';
       return;
     }
-    games.forEach(game => list.appendChild(renderGameCard(game)));
     window._allGames = games;
+    applyFilter();
   } catch (e) {
     list.innerHTML = '<p class="empty">読み込みエラー：' + e.message + '</p>';
   }
+}
+
+function setSortOrder(order) {
+  currentSortOrder = order;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  loadGames();
 }
 
 function filterGenre(genre) {
@@ -934,7 +1044,7 @@ function filterGenre(genre) {
 
 function searchGames() { applyFilter(); }
 
-function applyFilter() {
+async function applyFilter() {
   const q = document.getElementById('search-input').value.toLowerCase();
   const games = window._allGames || [];
   const list = document.getElementById('game-list');
@@ -952,7 +1062,10 @@ function applyFilter() {
     list.innerHTML = '<p class="empty">該当するゲームが見つかりませんでした</p>';
     return;
   }
-  filtered.forEach(game => list.appendChild(renderGameCard(game)));
+  for (const game of filtered) {
+    const card = await renderGameCard(game);
+    list.appendChild(card);
+  }
 }
 
 window.showTab = showTab;
@@ -978,6 +1091,7 @@ window.loadDraftList = loadDraftList;
 window.loadDraftById = loadDraftById;
 window.filterGenre = filterGenre;
 window.searchGames = searchGames;
+window.setSortOrder = setSortOrder;
 window.scenes = scenes;
 window.renderTree = renderTree;
 window.showLoginModal = showLoginModal;
@@ -996,8 +1110,12 @@ window.addIfCondition = addIfCondition;
 window.removeIfCondition = removeIfCondition;
 window.addSceneCondition = addSceneCondition;
 window.removeSceneCondition = removeSceneCondition;
+window.addExtraDest = addExtraDest;
+window.removeExtraDest = removeExtraDest;
 window.postNotice = postNotice;
 window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
+window.toggleLike = toggleLike;
+window.toggleFavorite = toggleFavorite;
 
 loadGames();
