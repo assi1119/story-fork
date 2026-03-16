@@ -17,11 +17,3 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 export { db, auth, googleProvider, collection, addDoc, getDocs, query, orderBy, where, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile };
-```
-
-貼り付けて `Ctrl + S` で保存したらGitHubにプッシュしてください👇
-```
-cd ~/Desktop/分岐ゲーム
-git add .
-git commit -m "fix firebase imports"
-git push origin main
