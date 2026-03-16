@@ -1042,5 +1042,6 @@ window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
 window.loadDraftList = loadDraftList;
 window.loadDraftById = loadDraftById;
+window.toggleSideMenu = toggleSideMenu;
 
 loadGames();
