@@ -13,6 +13,7 @@ let currentFilterGenre = 'all';
 let thumbnailData = null;
 let currentUser = null;
 let activeButtonTab = {};
+let boardImageData = null;
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const palette = ['#e94560','#1a6fc4','#1d9e75','#7f77dd','#e8760a','#d4537e','#444441','#0f6e56'];
 
@@ -27,7 +28,8 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('mode-select').style.display = 'block';
     await loadUserAvatar(user.uid);
     if (user.uid === ADMIN_UID) {
-      document.getElementById('admin-notice-btn').style.display = 'block';
+      const adminBtn = document.getElementById('admin-notice-btn');
+      if (adminBtn) adminBtn.style.display = 'block';
     }
   } else {
     document.getElementById('user-info').style.display = 'none';
@@ -37,7 +39,6 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('mode-select').style.display = 'none';
     document.getElementById('game-form').style.display = 'none';
   }
-  loadNotices();
 });
 
 async function loadUserAvatar(uid) {
@@ -141,17 +142,29 @@ async function logout() {
   await signOut(auth);
 }
 
-function showTab(tab) {
-  document.getElementById('play-tab').style.display = tab === 'play' ? 'block' : 'none';
-  document.getElementById('create-tab').style.display = tab === 'create' ? 'block' : 'none';
-  document.querySelectorAll('.tab-btn, .side-menu-item').forEach(b => b.classList.remove('active'));
+function showMainTab(tab) {
+  document.getElementById('play-tab').style.display = 'none';
+  document.getElementById('create-tab').style.display = 'none';
+  document.getElementById('notice-tab').style.display = 'none';
+  document.getElementById('board-tab').style.display = 'none';
+  document.querySelectorAll('.side-menu-item').forEach(b => b.classList.remove('active'));
+
   if (tab === 'play') {
-    const title = document.getElementById('game-title').value;
-    const desc = document.getElementById('game-description').value;
-    const hasInput = title || desc || Object.keys(scenes).length > 1;
-    if (!hasInput) resetCreateForm();
+    document.getElementById('play-tab').style.display = 'block';
     loadGames();
+  } else if (tab === 'create') {
+    document.getElementById('create-tab').style.display = 'block';
+  } else if (tab === 'notice') {
+    document.getElementById('notice-tab').style.display = 'block';
+    loadNotices();
+  } else if (tab === 'board') {
+    document.getElementById('board-tab').style.display = 'block';
+    loadBoardPosts();
   }
+}
+
+function showTab(tab) {
+  showMainTab(tab);
 }
 
 function resetCreateForm() {
@@ -199,6 +212,7 @@ function startCreate(mode) {
   document.getElementById('thumbnail-preview').src = '';
   document.getElementById('game-title').value = '';
   document.getElementById('game-description').value = '';
+  document.getElementById('game-tags').value = '';
   document.getElementById('game-author').value = currentUser ? (currentUser.displayName || currentUser.email) : '';
   document.getElementById('library-panel').style.display = mode === 'simple' ? 'none' : 'block';
   document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => c.checked = false);
@@ -226,9 +240,11 @@ function addScene() {
   const id = 'scene' + sceneCount;
   scenes[id] = {
     id, title: '', text: '', buttons: [], elements: [],
-    sceneConditions: [], sceneConditionMode: 'all', sceneConditionFail: ''
+    sceneConditions: [], sceneConditionMode: 'all', sceneConditionFail: '',
+    memo: ''
   };
   renderTree();
+  updateSceneStats();
   return id;
 }
 
@@ -261,6 +277,28 @@ function deleteScene(sceneId) {
   sceneCount = Object.keys(scenes).length;
   window.scenes = scenes;
   renderTree();
+  updateSceneStats();
+}
+
+function copyScene(sceneId) {
+  const original = scenes[sceneId];
+  const newScene = JSON.parse(JSON.stringify(original));
+  sceneCount++;
+  const newId = 'scene' + sceneCount;
+  newScene.id = newId;
+  newScene.title = newScene.title ? newScene.title + ' (コピー)' : 'コピー';
+  scenes[newId] = newScene;
+  renderTree();
+  updateSceneStats();
+}
+
+function updateSceneStats() {
+  const statsEl = document.getElementById('scene-stats');
+  if (!statsEl) return;
+  const sceneNum = Object.keys(scenes).length;
+  let charCount = 0;
+  Object.values(scenes).forEach(s => { charCount += (s.text || '').length; });
+  statsEl.textContent = '(' + sceneNum + 'シーン・' + charCount + '文字)';
 }
 
 function addButton(sceneId) {
@@ -289,7 +327,12 @@ function updateButtonColor(sceneId, btnIndex, color) {
   renderTree();
 }
 
-function updateSceneText(sceneId, value) { scenes[sceneId].text = value; }
+function updateSceneText(sceneId, value) {
+  scenes[sceneId].text = value;
+  updateSceneStats();
+}
+
+function updateSceneMemo(sceneId, value) { scenes[sceneId].memo = value; }
 function updateSceneTitle(sceneId, value) { scenes[sceneId].title = value; }
 
 function toggleButtonTab(sceneId, btnIndex, tab) {
@@ -630,8 +673,7 @@ function createSceneCard(scene) {
         '<option value="random"' + (dest.type === 'random' ? ' selected' : '') + '>ランダム</option>' +
         '<option value="var"' + (dest.type === 'var' ? ' selected' : '') + '>変数条件</option>' +
         '</select>' +
-        (dest.type === 'flag' ?
-          '<input type="text" class="btn-option-input" placeholder="フラグ名" value="' + (dest.flag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].flag = this.value">' : '') +
+        (dest.type === 'flag' ? '<input type="text" class="btn-option-input" placeholder="フラグ名" value="' + (dest.flag || '') + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].flag = this.value">' : '') +
         (dest.type === 'random' ?
           '<input type="number" class="btn-option-input-sm" placeholder="確率%" min="1" max="100" value="' + (dest.prob || 50) + '" oninput="scenes[\'' + scene.id + '\'].buttons[' + i + '].extraDests[' + di + '].prob = parseInt(this.value)">' +
           '<span class="btn-option-hint">%の確率で</span>' : '') +
@@ -725,10 +767,14 @@ function createSceneCard(scene) {
     '<div class="scene-header">' +
     '<span class="scene-label">' + scene.id + '</span>' +
     '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
+    '<button class="copy-scene-btn" onclick="copyScene(\'' + scene.id + '\')" title="シーンをコピー">📋</button>' +
     '<button class="delete-scene-btn" onclick="deleteScene(\'' + scene.id + '\')">✕</button>' +
     '</div>' +
     sceneCondPanel +
     '<textarea placeholder="シーンのテキストを入力...&#10;ヒント：' + hintText + '" oninput="updateSceneText(\'' + scene.id + '\', this.value)">' + scene.text + '</textarea>' +
+    '<details class="scene-memo-wrap"><summary>📝 メモ（作者のみ表示）</summary>' +
+    '<textarea class="scene-memo" placeholder="ここにメモを入力..." oninput="updateSceneMemo(\'' + scene.id + '\', this.value)">' + (scene.memo || '') + '</textarea>' +
+    '</details>' +
     '<div class="buttons-list">' + buttonsHTML + '</div>' +
     '<div class="scene-actions">' +
     '<button class="add-btn" onclick="addButton(\'' + scene.id + '\')">＋ ボタン追加</button>' +
@@ -742,6 +788,8 @@ async function uploadGame() {
   if (!currentUser) { alert('ゲームを作るにはログインが必要です'); return; }
   const title = document.getElementById('game-title').value;
   const description = document.getElementById('game-description').value;
+  const tagsInput = document.getElementById('game-tags').value;
+  const tags = tagsInput ? tagsInput.trim().split(/\s+/) : [];
   const author = currentUser.displayName || currentUser.email;
 
   if (!title) { alert('タイトルを入力してください'); return; }
@@ -750,19 +798,19 @@ async function uploadGame() {
 
   const game = {
     title, genres: currentGenre, genre: currentGenre[0],
-    description, author, uid: currentUser.uid,
+    description, tags, author, uid: currentUser.uid,
     thumbnail: thumbnailData || '', mode: currentMode,
     libraries: JSON.parse(JSON.stringify(libraries)),
     customVars: JSON.parse(JSON.stringify(customVars)),
     story: JSON.parse(JSON.stringify(scenes)),
-    playCount: 0, likeCount: 0,
+    playCount: 0, likeCount: 0, ratingSum: 0, ratingCount: 0,
     createdAt: new Date().toISOString()
   };
 
   try {
     await addDoc(collection(db, 'games'), game);
     alert('アップロードしました！');
-    document.querySelectorAll('.tab-btn')[0].click();
+    showMainTab('play');
   } catch (e) {
     alert('エラーが発生しました：' + e.message);
   }
@@ -774,6 +822,7 @@ async function saveDraft() {
   const draft = {
     title, genres: currentGenre, genre: currentGenre[0] || '',
     description: document.getElementById('game-description').value,
+    tags: (document.getElementById('game-tags').value || '').trim().split(/\s+/).filter(Boolean),
     author: currentUser.displayName || currentUser.email,
     uid: currentUser.uid, thumbnail: thumbnailData || '', mode: currentMode,
     libraries: JSON.parse(JSON.stringify(libraries)),
@@ -840,12 +889,12 @@ async function loadDraftById(draft) {
   scenes = draft.story || {};
   sceneCount = Object.keys(scenes).length;
   thumbnailData = draft.thumbnail || null;
+  showMainTab('create');
   document.getElementById('mode-select').style.display = 'none';
   document.getElementById('game-form').style.display = 'block';
-  document.getElementById('create-tab').style.display = 'block';
-  document.getElementById('play-tab').style.display = 'none';
   document.getElementById('game-title').value = draft.title || '';
   document.getElementById('game-description').value = draft.description || '';
+  document.getElementById('game-tags').value = (draft.tags || []).join(' ');
   document.getElementById('game-author').value = draft.author || '';
   document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
   document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
@@ -871,15 +920,21 @@ async function toggleLike(gameId) {
   if (likeSnap.exists()) {
     await deleteDoc(likeRef);
     await updateDoc(gameRef, { likeCount: increment(-1) });
-    document.getElementById('like-btn-' + gameId).classList.remove('liked');
-    const count = parseInt(document.getElementById('like-count-' + gameId).textContent) - 1;
-    document.getElementById('like-count-' + gameId).textContent = count;
+    const btn = document.getElementById('like-btn-' + gameId);
+    if (btn) {
+      btn.classList.remove('liked');
+      const countEl = document.getElementById('like-count-' + gameId);
+      if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+    }
   } else {
     await addDoc(collection(db, 'likes'), { gameId, uid: currentUser.uid, createdAt: new Date().toISOString() });
     await updateDoc(gameRef, { likeCount: increment(1) });
-    document.getElementById('like-btn-' + gameId).classList.add('liked');
-    const count = parseInt(document.getElementById('like-count-' + gameId).textContent) + 1;
-    document.getElementById('like-count-' + gameId).textContent = count;
+    const btn = document.getElementById('like-btn-' + gameId);
+    if (btn) {
+      btn.classList.add('liked');
+      const countEl = document.getElementById('like-count-' + gameId);
+      if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
+    }
   }
 }
 
@@ -889,11 +944,40 @@ async function toggleFavorite(gameId) {
   const favSnap = await getDoc(favRef);
   if (favSnap.exists()) {
     await deleteDoc(favRef);
-    document.getElementById('fav-btn-' + gameId).classList.remove('favorited');
+    const btn = document.getElementById('fav-btn-' + gameId);
+    if (btn) btn.classList.remove('favorited');
   } else {
     await addDoc(collection(db, 'favorites'), { gameId, uid: currentUser.uid, createdAt: new Date().toISOString() });
-    document.getElementById('fav-btn-' + gameId).classList.add('favorited');
+    const btn = document.getElementById('fav-btn-' + gameId);
+    if (btn) btn.classList.add('favorited');
   }
+}
+
+async function rateGame(gameId, rating) {
+  if (!currentUser) { alert('評価にはログインが必要です'); return; }
+  const rateRef = doc(db, 'ratings', gameId + '_' + currentUser.uid);
+  const rateSnap = await getDoc(rateRef);
+  const gameRef = doc(db, 'games', gameId);
+  const gameSnap = await getDoc(gameRef);
+  const gameData = gameSnap.data();
+
+  if (rateSnap.exists()) {
+    const oldRating = rateSnap.data().rating;
+    await updateDoc(rateRef, { rating, updatedAt: new Date().toISOString() });
+    await updateDoc(gameRef, {
+      ratingSum: (gameData.ratingSum || 0) - oldRating + rating
+    });
+  } else {
+    await addDoc(collection(db, 'ratings'), { gameId, uid: currentUser.uid, rating, createdAt: new Date().toISOString() });
+    await updateDoc(gameRef, {
+      ratingSum: increment(rating),
+      ratingCount: increment(1)
+    });
+  }
+
+  const avg = ((gameData.ratingSum || 0) + rating) / ((gameData.ratingCount || 0) + 1);
+  const starsEl = document.getElementById('rating-' + gameId);
+  if (starsEl) starsEl.textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5 - Math.round(avg)) + ' ' + avg.toFixed(1);
 }
 
 async function postNotice() {
@@ -937,17 +1021,20 @@ async function deleteNotice(noticeId) {
 }
 
 async function loadNotices() {
-  const area = document.getElementById('notice-area');
-  if (!area) return;
+  const list = document.getElementById('notice-list');
+  if (!list) return;
+  list.innerHTML = '<p class="empty">読み込み中...</p>';
   try {
     const q = query(collection(db, 'notices'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     const notices = [];
     snapshot.forEach(d => notices.push({ id: d.id, ...d.data() }));
-    if (notices.length === 0) { area.style.display = 'none'; return; }
-    area.style.display = 'block';
+    if (notices.length === 0) {
+      list.innerHTML = '<p class="empty">お知らせはありません</p>';
+      return;
+    }
     const isAdmin = currentUser && currentUser.uid === ADMIN_UID;
-    area.innerHTML = notices.map(n =>
+    list.innerHTML = notices.map(n =>
       '<div class="notice-item">' +
       '<div class="notice-title">' + n.title + '</div>' +
       '<div class="notice-body">' + n.body + '</div>' +
@@ -961,8 +1048,189 @@ async function loadNotices() {
       '</div></div>'
     ).join('');
   } catch (e) {
-    area.style.display = 'none';
+    list.innerHTML = '<p class="empty">読み込みエラー：' + e.message + '</p>';
   }
+}
+
+function showPostForm() {
+  if (!currentUser) { alert('投稿にはログインが必要です'); showLoginModal(); return; }
+  document.getElementById('post-form-area').style.display = 'block';
+}
+
+function hidePostForm() {
+  document.getElementById('post-form-area').style.display = 'none';
+  document.getElementById('board-post-text').value = '';
+  document.getElementById('board-image-preview').style.display = 'none';
+  boardImageData = null;
+}
+
+function previewBoardImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    boardImageData = e.target.result;
+    const preview = document.getElementById('board-image-preview');
+    preview.src = boardImageData;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitBoardPost() {
+  if (!currentUser) { alert('投稿にはログインが必要です'); return; }
+  const text = document.getElementById('board-post-text').value.trim();
+  if (!text) { alert('本文を入力してください'); return; }
+  try {
+    await addDoc(collection(db, 'boards'), {
+      text, image: boardImageData || '',
+      uid: currentUser.uid,
+      author: currentUser.displayName || currentUser.email,
+      createdAt: new Date().toISOString(),
+      likeCount: 0
+    });
+    hidePostForm();
+    loadBoardPosts();
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
+async function loadBoardPosts() {
+  const list = document.getElementById('board-list');
+  if (!list) return;
+  list.innerHTML = '<p class="empty">読み込み中...</p>';
+  try {
+    const q = query(collection(db, 'boards'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    const posts = [];
+    snapshot.forEach(d => posts.push({ id: d.id, ...d.data() }));
+    list.innerHTML = '';
+    if (posts.length === 0) {
+      list.innerHTML = '<p class="empty">まだ投稿がありません</p>';
+      return;
+    }
+    posts.forEach(post => list.appendChild(createBoardCard(post)));
+  } catch (e) {
+    list.innerHTML = '<p class="empty">読み込みエラー：' + e.message + '</p>';
+  }
+}
+
+function createBoardCard(post) {
+  const card = document.createElement('div');
+  card.className = 'board-card';
+  const date = new Date(post.createdAt).toLocaleDateString('ja-JP');
+  const isOwner = currentUser && currentUser.uid === post.uid;
+  const isAdmin = currentUser && currentUser.uid === ADMIN_UID;
+  card.innerHTML =
+    '<div class="board-card-header">' +
+    '<span class="board-author">' + (post.author || '匿名') + '</span>' +
+    '<span class="board-date">' + date + '</span>' +
+    '</div>' +
+    '<div class="board-text">' + post.text.replace(/\n/g, '<br>') + '</div>' +
+    (post.image ? '<img src="' + post.image + '" class="board-image" alt="投稿画像">' : '') +
+    '<div class="board-card-actions">' +
+    '<button class="board-like-btn" id="board-like-' + post.id + '" onclick="toggleBoardLike(\'' + post.id + '\')">' +
+    '♥ <span id="board-like-count-' + post.id + '">' + (post.likeCount || 0) + '</span>' +
+    '</button>' +
+    '<button class="board-reply-btn" onclick="toggleReply(\'' + post.id + '\')">💬 返信</button>' +
+    (isOwner ? '<button class="board-edit-btn" onclick="editBoardPost(\'' + post.id + '\', \'' + post.text.replace(/'/g, "\\'") + '\')">編集</button>' : '') +
+    ((isOwner || isAdmin) ? '<button class="board-delete-btn" onclick="deleteBoardPost(\'' + post.id + '\')">削除</button>' : '') +
+    '</div>' +
+    '<div id="reply-form-' + post.id + '" style="display:none" class="reply-form">' +
+    '<textarea id="reply-input-' + post.id + '" placeholder="返信を入力..."></textarea>' +
+    '<button class="submit-btn" onclick="submitReply(\'' + post.id + '\')">返信する</button>' +
+    '</div>' +
+    '<div id="replies-' + post.id + '" class="replies-list"></div>';
+  loadReplies(post.id, card.querySelector('#replies-' + post.id));
+  return card;
+}
+
+async function toggleBoardLike(postId) {
+  if (!currentUser) { alert('いいねにはログインが必要です'); return; }
+  const likeRef = doc(db, 'boardLikes', postId + '_' + currentUser.uid);
+  const likeSnap = await getDoc(likeRef);
+  const postRef = doc(db, 'boards', postId);
+  if (likeSnap.exists()) {
+    await deleteDoc(likeRef);
+    await updateDoc(postRef, { likeCount: increment(-1) });
+    const btn = document.getElementById('board-like-' + postId);
+    if (btn) btn.classList.remove('liked');
+    const countEl = document.getElementById('board-like-count-' + postId);
+    if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+  } else {
+    await addDoc(collection(db, 'boardLikes'), { postId, uid: currentUser.uid });
+    await updateDoc(postRef, { likeCount: increment(1) });
+    const btn = document.getElementById('board-like-' + postId);
+    if (btn) btn.classList.add('liked');
+    const countEl = document.getElementById('board-like-count-' + postId);
+    if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
+  }
+}
+
+async function editBoardPost(postId, currentText) {
+  const newText = prompt('投稿を編集', currentText);
+  if (!newText) return;
+  try {
+    await updateDoc(doc(db, 'boards', postId), { text: newText });
+    loadBoardPosts();
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
+async function deleteBoardPost(postId) {
+  if (!confirm('この投稿を削除しますか？')) return;
+  try {
+    await deleteDoc(doc(db, 'boards', postId));
+    loadBoardPosts();
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
+function toggleReply(postId) {
+  const form = document.getElementById('reply-form-' + postId);
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitReply(postId) {
+  if (!currentUser) { alert('返信にはログインが必要です'); return; }
+  const input = document.getElementById('reply-input-' + postId);
+  const text = input ? input.value.trim() : '';
+  if (!text) { alert('返信を入力してください'); return; }
+  try {
+    await addDoc(collection(db, 'boards', postId, 'replies'), {
+      text, uid: currentUser.uid,
+      author: currentUser.displayName || currentUser.email,
+      createdAt: new Date().toISOString()
+    });
+    if (input) input.value = '';
+    toggleReply(postId);
+    const repliesEl = document.getElementById('replies-' + postId);
+    if (repliesEl) loadReplies(postId, repliesEl);
+  } catch (e) {
+    alert('エラー：' + e.message);
+  }
+}
+
+async function loadReplies(postId, container) {
+  if (!container) return;
+  try {
+    const q = query(collection(db, 'boards', postId, 'replies'), orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    container.innerHTML = '';
+    snapshot.forEach(d => {
+      const reply = { id: d.id, ...d.data() };
+      const div = document.createElement('div');
+      div.className = 'reply-item';
+      div.innerHTML =
+        '<span class="reply-author">' + (reply.author || '匿名') + '</span>' +
+        '<span class="reply-text">' + reply.text.replace(/\n/g, '<br>') + '</span>' +
+        '<span class="reply-date">' + new Date(reply.createdAt).toLocaleDateString('ja-JP') + '</span>';
+      container.appendChild(div);
+    });
+  } catch (e) { console.log(e); }
 }
 
 async function renderGameCard(game) {
@@ -973,26 +1241,39 @@ async function renderGameCard(game) {
     : '<div class="game-thumb-placeholder"></div>';
   const genres = game.genres || [game.genre];
   const genreTags = genres.map(g => '<span class="game-genre-tag">' + g + '</span>').join('');
+  const tags = (game.tags || []).map(t => '<span class="game-tag">#' + t + '</span>').join('');
 
   let isLiked = false;
   let isFaved = false;
+  let userRating = 0;
   if (currentUser) {
     try {
       const likeSnap = await getDoc(doc(db, 'likes', game.id + '_' + currentUser.uid));
       isLiked = likeSnap.exists();
       const favSnap = await getDoc(doc(db, 'favorites', game.id + '_' + currentUser.uid));
       isFaved = favSnap.exists();
+      const rateSnap = await getDoc(doc(db, 'ratings', game.id + '_' + currentUser.uid));
+      if (rateSnap.exists()) userRating = rateSnap.data().rating;
     } catch(e) {}
   }
+
+  const avgRating = game.ratingCount ? (game.ratingSum / game.ratingCount) : 0;
+  const starsHTML = [1,2,3,4,5].map(s =>
+    '<span class="star-btn' + (s <= userRating ? ' rated' : '') + '" onclick="rateGame(\'' + game.id + '\', ' + s + ')">' + (s <= Math.round(avgRating) ? '★' : '☆') + '</span>'
+  ).join('');
 
   card.innerHTML =
     thumb +
     '<div class="game-card-body">' +
     '<div class="genre-tags-row">' + genreTags + '</div>' +
+    (tags ? '<div class="game-tags-row">' + tags + '</div>' : '') +
     '<h2>' + game.title + '</h2>' +
     '<p>' + game.description + '</p>' +
     '<p class="game-author">製作者：' + (game.author || '不明') + '</p>' +
     '<p class="game-playcount">プレイ数：' + (game.playCount || 0) + '回</p>' +
+    '<div id="rating-' + game.id + '" class="game-rating">' + starsHTML +
+    (avgRating > 0 ? '<span class="rating-avg">' + avgRating.toFixed(1) + '</span>' : '') +
+    '</div>' +
     '<div class="game-card-actions">' +
     '<a href="play.html?id=' + game.id + '" class="play-link">遊ぶ</a>' +
     '<button id="like-btn-' + game.id + '" class="like-btn' + (isLiked ? ' liked' : '') + '" onclick="toggleLike(\'' + game.id + '\')">' +
@@ -1015,11 +1296,6 @@ async function loadGames() {
     const snapshot = await getDocs(q);
     const games = [];
     snapshot.forEach(d => games.push({ id: d.id, ...d.data() }));
-    list.innerHTML = '';
-    if (games.length === 0) {
-      list.innerHTML = '<p class="empty">まだゲームがありません。作るタブからゲームを作ってみよう！</p>';
-      return;
-    }
     window._allGames = games;
     applyFilter();
   } catch (e) {
@@ -1051,11 +1327,13 @@ async function applyFilter() {
   list.innerHTML = '';
   const filtered = games.filter(game => {
     const genres = game.genres || [game.genre];
+    const tags = game.tags || [];
     const matchGenre = currentFilterGenre === 'all' || genres.includes(currentFilterGenre);
     const matchSearch = !q ||
       game.title.toLowerCase().includes(q) ||
       (game.author || '').toLowerCase().includes(q) ||
-      genres.some(g => g.toLowerCase().includes(q));
+      genres.some(g => g.toLowerCase().includes(q)) ||
+      tags.some(t => t.toLowerCase().includes(q));
     return matchGenre && matchSearch;
   });
   if (filtered.length === 0) {
@@ -1069,6 +1347,7 @@ async function applyFilter() {
 }
 
 window.showTab = showTab;
+window.showMainTab = showMainTab;
 window.startCreate = startCreate;
 window.backToModeSelect = backToModeSelect;
 window.updateGenre = updateGenre;
@@ -1076,11 +1355,13 @@ window.updateGenreSelection = updateGenreSelection;
 window.previewThumbnail = previewThumbnail;
 window.addScene = addScene;
 window.deleteScene = deleteScene;
+window.copyScene = copyScene;
 window.addButton = addButton;
 window.deleteButton = deleteButton;
 window.updateButtonColor = updateButtonColor;
 window.updateSceneText = updateSceneText;
 window.updateSceneTitle = updateSceneTitle;
+window.updateSceneMemo = updateSceneMemo;
 window.addLibrary = addLibrary;
 window.deleteLibrary = deleteLibrary;
 window.addCustomVar = addCustomVar;
@@ -1117,5 +1398,15 @@ window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
 window.toggleLike = toggleLike;
 window.toggleFavorite = toggleFavorite;
+window.rateGame = rateGame;
+window.showPostForm = showPostForm;
+window.hidePostForm = hidePostForm;
+window.previewBoardImage = previewBoardImage;
+window.submitBoardPost = submitBoardPost;
+window.toggleBoardLike = toggleBoardLike;
+window.editBoardPost = editBoardPost;
+window.deleteBoardPost = deleteBoardPost;
+window.toggleReply = toggleReply;
+window.submitReply = submitReply;
 
 loadGames();

@@ -41,9 +41,11 @@
       <button onclick="toggleSideMenu()">✕</button>
     </div>
     <div class="side-menu-body">
-      <button class="side-menu-item active" onclick="showTab('play'); toggleSideMenu()">遊ぶ</button>
-      <button class="side-menu-item" onclick="showTab('create'); toggleSideMenu()">作る</button>
-      <a href="mypage.html" class="side-menu-item">マイページ</a>
+      <button class="side-menu-item active" onclick="showMainTab('play'); toggleSideMenu()">🎮 遊ぶ</button>
+      <button class="side-menu-item" onclick="showMainTab('create'); toggleSideMenu()">✏️ 作る</button>
+      <button class="side-menu-item" onclick="showMainTab('notice'); toggleSideMenu()">📢 お知らせ</button>
+      <button class="side-menu-item" onclick="showMainTab('board'); toggleSideMenu()">💬 掲示板</button>
+      <a href="mypage.html" class="side-menu-item">👤 マイページ</a>
       <div class="side-menu-divider"></div>
       <div class="side-menu-section-title">📂 下書き一覧</div>
       <div id="draft-list-menu"></div>
@@ -78,9 +80,8 @@
   </div>
 
   <main>
-    <div id="notice-area" style="display:none"></div>
-    <button id="admin-notice-btn" style="display:none" onclick="postNotice()" class="admin-btn">＋ お知らせを投稿</button>
 
+    <!-- 遊ぶタブ -->
     <div id="play-tab">
       <div class="sort-bar">
         <button class="sort-btn active" onclick="setSortOrder('new')">新着順</button>
@@ -88,7 +89,7 @@
         <button class="sort-btn" onclick="setSortOrder('likes')">いいね順</button>
       </div>
       <div id="search-bar">
-        <input type="text" id="search-input" placeholder="タイトル・作者名・ジャンルで検索..." oninput="searchGames()">
+        <input type="text" id="search-input" placeholder="タイトル・作者名・ジャンル・タグで検索..." oninput="searchGames()">
       </div>
       <div id="genre-filter">
         <button class="genre-btn active" onclick="filterGenre('all')">すべて</button>
@@ -107,6 +108,7 @@
       <div id="game-list"></div>
     </div>
 
+    <!-- 作るタブ -->
     <div id="create-tab" style="display:none">
       <div id="not-logged-in" style="display:none">
         <div class="login-required">
@@ -115,7 +117,6 @@
           <button class="submit-btn" onclick="showLoginModal()">ログイン / 登録</button>
         </div>
       </div>
-
       <div id="mode-select" style="display:none">
         <h2>どのモードで作りますか？</h2>
         <div class="mode-cards">
@@ -129,11 +130,9 @@
           </div>
         </div>
       </div>
-
       <div id="game-form" style="display:none">
         <button class="back-form-btn" onclick="backToModeSelect()">← 選択画面に戻る</button>
         <button class="draft-save-btn" onclick="saveDraft()">💾 下書き保存</button>
-
         <div id="form-header">
           <div class="form-row">
             <label>タイトル</label>
@@ -157,6 +156,10 @@
             <p id="genre-count" class="genre-count">0 / 3 選択中</p>
           </div>
           <div class="form-row">
+            <label>タグ（スペース区切りで複数入力可）</label>
+            <input type="text" id="game-tags" placeholder="例：ホラー 短編 初心者向け">
+          </div>
+          <div class="form-row">
             <label>説明</label>
             <input type="text" id="game-description" placeholder="どんなゲームか一言で">
           </div>
@@ -170,7 +173,6 @@
             <img id="thumbnail-preview" src="" alt="" style="display:none; width:200px; border-radius:8px; margin-top:8px;">
           </div>
         </div>
-
         <div id="library-panel">
           <h3>要素ライブラリ</h3>
           <p class="lib-hint">選択肢を押したときに変化するパラメータを追加できます。{ ライブラリ名 } と書くとテキストに値を表示できます。</p>
@@ -204,15 +206,43 @@
             <button class="add-btn" onclick="addCustomVar()">＋ オリジナル変数を追加</button>
           </div>
         </div>
-
         <div id="tree-editor">
-          <h3>シーンツリー</h3>
+          <h3>シーンツリー <span id="scene-stats" class="scene-stats"></span></h3>
           <div id="scene-tree"></div>
         </div>
-
         <button id="upload-btn" onclick="uploadGame()">アップロード</button>
       </div>
     </div>
+
+    <!-- お知らせタブ -->
+    <div id="notice-tab" style="display:none">
+      <div class="tab-header">
+        <h2>📢 お知らせ</h2>
+        <button id="admin-notice-btn" style="display:none" onclick="postNotice()" class="admin-btn">＋ 投稿</button>
+      </div>
+      <div id="notice-list"><p class="empty">読み込み中...</p></div>
+    </div>
+
+    <!-- 掲示板タブ -->
+    <div id="board-tab" style="display:none">
+      <div class="tab-header">
+        <h2>💬 掲示板</h2>
+        <button class="admin-btn" onclick="showPostForm()" id="post-form-btn">＋ 投稿</button>
+      </div>
+      <div id="post-form-area" style="display:none">
+        <div class="board-post-form">
+          <textarea id="board-post-text" placeholder="投稿内容を入力..."></textarea>
+          <input type="file" id="board-post-image" accept="image/*" onchange="previewBoardImage(this)">
+          <img id="board-image-preview" src="" alt="" style="display:none; max-width:200px; border-radius:8px; margin-top:8px;">
+          <div class="board-form-actions">
+            <button class="submit-btn" onclick="submitBoardPost()">投稿する</button>
+            <button class="back-form-btn" onclick="hidePostForm()">キャンセル</button>
+          </div>
+        </div>
+      </div>
+      <div id="board-list"><p class="empty">読み込み中...</p></div>
+    </div>
+
   </main>
 
   <script type="module" src="index.js"></script>
