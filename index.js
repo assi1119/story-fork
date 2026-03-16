@@ -59,16 +59,24 @@ function toggleUserMenu() {
   dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
-function toggleSideMenu() {
-  const menu = document.getElementById('side-menu');
-  const overlay = document.getElementById('side-overlay');
-  const isOpen = menu.classList.contains('open');
-  if (isOpen) {
-    menu.classList.remove('open');
-    overlay.classList.remove('open');
-  } else {
-    menu.classList.add('open');
-    overlay.classList.add('open');
+async function saveDraft() {
+  if (!currentUser) { alert('セーブするにはログインが必要です'); return; }
+  const title = document.getElementById('game-title').value || '無題の下書き';
+  const draft = {
+    title, genres: currentGenre, genre: currentGenre[0] || '',
+    description: document.getElementById('game-description').value,
+    author: currentUser.displayName || currentUser.email,
+    uid: currentUser.uid, thumbnail: thumbnailData || '', mode: currentMode,
+    libraries: JSON.parse(JSON.stringify(libraries)),
+    customVars: JSON.parse(JSON.stringify(customVars)),
+    story: JSON.parse(JSON.stringify(scenes)),
+    savedAt: new Date().toISOString()
+  };
+  try {
+    await addDoc(collection(db, 'drafts'), draft);
+    alert('「' + title + '」を下書き保存しました！');
+  } catch (e) {
+    alert('エラー：' + e.message);
   }
 }
 
@@ -797,6 +805,76 @@ async function loadDrafts() {
   }
 }
 
+async function loadDraftList() {
+  const list = document.getElementById('draft-list-menu');
+  if (!list || !currentUser) {
+    if (list) list.innerHTML = '<p class="draft-list-empty">ログインすると下書きが表示されます</p>';
+    return;
+  }
+  list.innerHTML = '<p class="draft-list-empty">読み込み中...</p>';
+  try {
+    const q = query(collection(db, 'drafts'), where('uid', '==', currentUser.uid));
+    const snapshot = await getDocs(q);
+    const drafts = [];
+    snapshot.forEach(d => drafts.push({ id: d.id, ...d.data() }));
+    drafts.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+    list.innerHTML = '';
+    if (drafts.length === 0) {
+      list.innerHTML = '<p class="draft-list-empty">下書きがありません</p>';
+      return;
+    }
+    drafts.forEach(draft => {
+      const btn = document.createElement('button');
+      btn.className = 'draft-list-item';
+      const date = new Date(draft.savedAt).toLocaleDateString('ja-JP');
+      btn.innerHTML =
+        '<span class="draft-list-title">' + draft.title + '</span>' +
+        '<span class="draft-list-date">' + date + '</span>';
+      btn.onclick = () => loadDraftById(draft);
+      list.appendChild(btn);
+    });
+  } catch (e) {
+    list.innerHTML = '<p class="draft-list-empty">読み込みエラー</p>';
+  }
+}
+
+async function loadDraftById(draft) {
+  if (!confirm('「' + draft.title + '」を読み込みますか？\n現在の作業内容は失われます。')) return;
+  toggleSideMenu();
+  currentMode = draft.mode || 'simple';
+  currentGenre = draft.genres || [draft.genre] || [];
+  libraries = draft.libraries || [];
+  customVars = draft.customVars || [];
+  scenes = draft.story || {};
+  sceneCount = Object.keys(scenes).length;
+  thumbnailData = draft.thumbnail || null;
+
+  document.getElementById('mode-select').style.display = 'none';
+  document.getElementById('game-form').style.display = 'block';
+  document.getElementById('create-tab').style.display = 'block';
+  document.getElementById('play-tab').style.display = 'none';
+  document.getElementById('game-title').value = draft.title || '';
+  document.getElementById('game-description').value = draft.description || '';
+  document.getElementById('game-author').value = draft.author || '';
+  document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
+
+  document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
+    c.checked = currentGenre.includes(c.value);
+  });
+  document.getElementById('genre-count').textContent = currentGenre.length + ' / 3 選択中';
+
+  if (thumbnailData) {
+    const preview = document.getElementById('thumbnail-preview');
+    preview.src = thumbnailData;
+    preview.style.display = 'block';
+  }
+
+  renderLibrary();
+  renderCustomVars();
+  renderTree();
+  window.scenes = scenes;
+}
+
 async function postNotice() {
   if (!currentUser || currentUser.uid !== ADMIN_UID) return;
   const title = prompt('お知らせのタイトルを入力');
@@ -981,5 +1059,7 @@ window.removeSceneCondition = removeSceneCondition;
 window.postNotice = postNotice;
 window.editNotice = editNotice;
 window.deleteNotice = deleteNotice;
+window.loadDraftList = loadDraftList;
+window.loadDraftById = loadDraftById;
 
 loadGames();

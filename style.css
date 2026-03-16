@@ -1951,4 +1951,57 @@ footer {
   margin-bottom: 8px;
 }
 
+.side-menu-divider {
+  height: 1px;
+  background: #e0f5ee;
+  margin: 8px 0;
+}
 
+.side-menu-section-title {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 700;
+  padding: 4px 16px;
+  letter-spacing: 0.05em;
+}
+
+.draft-list-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'メイリオ', sans-serif;
+  transition: background 0.2s;
+  gap: 2px;
+}
+
+.draft-list-item:hover {
+  background: #e6faf3;
+}
+
+.draft-list-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+  display: block;
+}
+
+.draft-list-date {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.draft-list-empty {
+  font-size: 12px;
+  color: #aaa;
+  padding: 8px 16px;
+}

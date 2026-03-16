@@ -44,6 +44,9 @@
       <button class="side-menu-item active" onclick="showTab('play'); toggleSideMenu()">遊ぶ</button>
       <button class="side-menu-item" onclick="showTab('create'); toggleSideMenu()">作る</button>
       <a href="mypage.html" class="side-menu-item">マイページ</a>
+      <div class="side-menu-divider"></div>
+      <div class="side-menu-section-title">📂 下書き一覧</div>
+      <div id="draft-list-menu"></div>
     </div>
   </div>
   <div id="side-overlay" class="side-overlay" onclick="toggleSideMenu()"></div>
@@ -124,6 +127,7 @@
 
       <div id="game-form" style="display:none">
         <button class="back-form-btn" onclick="backToModeSelect()">← 選択画面に戻る</button>
+        <button class="draft-save-btn" onclick="saveDraft()">💾 下書き保存</button>
         <div id="form-header">
           <div class="form-row">
             <label>タイトル</label>
@@ -200,6 +204,10 @@
           <div id="scene-tree"></div>
         </div>
 
+        <div class="draft-btns">
+          <button class="draft-save-btn" onclick="saveDraft()">💾 下書き保存</button>
+          <button class="draft-load-btn" onclick="loadDrafts()">📂 下書きを読み込む</button>
+        </div>
         <button id="upload-btn" onclick="uploadGame()">アップロード</button>
       </div>
     </div>
