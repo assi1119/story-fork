@@ -59,26 +59,7 @@ function toggleUserMenu() {
   dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
-async function saveDraft() {
-  if (!currentUser) { alert('セーブするにはログインが必要です'); return; }
-  const title = document.getElementById('game-title').value || '無題の下書き';
-  const draft = {
-    title, genres: currentGenre, genre: currentGenre[0] || '',
-    description: document.getElementById('game-description').value,
-    author: currentUser.displayName || currentUser.email,
-    uid: currentUser.uid, thumbnail: thumbnailData || '', mode: currentMode,
-    libraries: JSON.parse(JSON.stringify(libraries)),
-    customVars: JSON.parse(JSON.stringify(customVars)),
-    story: JSON.parse(JSON.stringify(scenes)),
-    savedAt: new Date().toISOString()
-  };
-  try {
-    await addDoc(collection(db, 'drafts'), draft);
-    alert('「' + title + '」を下書き保存しました！');
-  } catch (e) {
-    alert('エラー：' + e.message);
-  }
-}
+
 
 document.addEventListener('click', e => {
   const menu = document.getElementById('user-name');
