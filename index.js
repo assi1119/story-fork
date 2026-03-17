@@ -29,7 +29,7 @@ onAuthStateChanged(auth, async user => {
     await loadUserAvatar(user.uid);
     if (user.uid === ADMIN_UID) {
       const adminBtn = document.getElementById('admin-notice-btn');
-      if (adminBtn) adminBtn.style.display = 'block';
+      if (adminBtn) adminBtn.style.display = 'inline-block';
     }
   } else {
     document.getElementById('user-info').style.display = 'none';
@@ -581,6 +581,9 @@ function createSceneCard(scene) {
   card.className = 'scene-card';
   card.id = 'card-' + scene.id;
 
+  // ★追加：パスの計算結果を表示するバッジ
+  const scenePath = getScenePath(scene.id);
+
   const allVarNames = [...libraries.map(l => '{' + l.name + '}'), ...customVars.map(v => '{' + v.name + '}')];
   const hintText = allVarNames.length > 0
     ? '文章に ' + allVarNames.join(' ') + ' と書くと値が表示されます'
@@ -764,6 +767,7 @@ function createSceneCard(scene) {
   }
 
   card.innerHTML =
+    '<div class="scene-path-badge">' + scenePath + '</div>' + 
     '<div class="scene-header">' +
     '<span class="scene-label">' + scene.id + '</span>' +
     '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
@@ -1344,6 +1348,21 @@ async function applyFilter() {
     const card = await renderGameCard(game);
     list.appendChild(card);
   }
+}
+
+function getScenePath(sceneId) {
+  if (sceneId === 'scene1') return 'Root';
+  for (const parentId in scenes) {
+    const parent = scenes[parentId];
+    if (!parent.buttons) continue;
+    const btnIndex = parent.buttons.findIndex(b => b.next === sceneId);
+    if (btnIndex !== -1) {
+      const parentPath = getScenePath(parentId);
+      const currentLabel = String.fromCharCode(65 + btnIndex); 
+      return parentPath === 'Root' ? currentLabel : `${parentPath}-${currentLabel}`;
+    }
+  }
+  return '未接続';
 }
 
 window.showTab = showTab;

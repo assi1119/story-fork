@@ -29,6 +29,18 @@ async function loadUserData(uid) {
     const docSnap = await getDoc(doc(db, 'users', uid));
     if (docSnap.exists()) {
       const data = docSnap.data();
+
+      // ★追加：自己紹介(bio)の表示反映
+      const bioDisplay = document.getElementById('mypage-bio');
+      const bioInput = document.getElementById('bio-input');
+      if (bioDisplay) {
+        bioDisplay.textContent = data.bio || '自己紹介はまだありません。';
+        bioDisplay.style.whiteSpace = 'pre-wrap'; // 改行を有効にする
+      }
+      if (bioInput) {
+        bioInput.value = data.bio || ''; // 入力欄にも現在の値をセット
+      }
+
       if (data.username) {
         document.getElementById('mypage-at-name').textContent = '@' + data.username;
         document.getElementById('username-form').style.display = 'none';
@@ -50,14 +62,30 @@ async function loadUserData(uid) {
 
 async function saveUsername() {
   const username = document.getElementById('username-input').value.trim();
+  // ★追加：自己紹介の入力値を取得
+  const bioInput = document.getElementById('bio-input');
+  const bio = bioInput ? bioInput.value.trim() : "";
+
   if (!username) { alert('ユーザー名を入力してください'); return; }
   try {
     const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
     const existing = docSnap.exists() ? docSnap.data() : {};
-    await setDoc(doc(db, 'users', currentUser.uid), { ...existing, username });
+    
+    // ★修正：usernameと一緒にbioも保存
+    await setDoc(doc(db, 'users', currentUser.uid), { 
+      ...existing, 
+      username: username,
+      bio: bio 
+    });
+
     document.getElementById('mypage-at-name').textContent = '@' + username;
+    
+    // ★追加：表示側の自己紹介も即時更新
+    const bioDisplay = document.getElementById('mypage-bio');
+    if (bioDisplay) bioDisplay.textContent = bio || '自己紹介はまだありません。';
+
     document.getElementById('username-form').style.display = 'none';
-    alert('ユーザー名を設定しました！');
+    alert('プロフィールを更新しました！');
   } catch (e) {
     alert('エラー：' + e.message);
   }
@@ -96,6 +124,7 @@ async function logout() {
 
 async function loadMyGames() {
   const list = document.getElementById('my-games');
+  if (!list) return;
   list.innerHTML = '<p class="empty">読み込み中...</p>';
   try {
     const q = query(collection(db, 'games'), where('uid', '==', currentUser.uid));
@@ -147,6 +176,7 @@ async function deleteGame(gameId, title) {
 
 async function loadPlayHistory() {
   const list = document.getElementById('play-history');
+  if (!list) return;
   list.innerHTML = '<p class="empty">読み込み中...</p>';
   try {
     const q = query(collection(db, 'playHistory'), where('uid', '==', currentUser.uid));
