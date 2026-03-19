@@ -163,7 +163,7 @@ async function registerWithEmail() {
 async function logout() { await signOut(auth); }
 
 function showMainTab(tab) {
-  ['play-tab','create-tab','notice-tab','board-tab'].forEach(id => {
+  ['play-tab','create-tab','notice-tab','board-tab','trpg-tab'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -171,6 +171,7 @@ function showMainTab(tab) {
   else if (tab === 'create') { document.getElementById('create-tab').style.display = 'block'; }
   else if (tab === 'notice') { document.getElementById('notice-tab').style.display = 'block'; loadNotices(); }
   else if (tab === 'board') { document.getElementById('board-tab').style.display = 'block'; loadBoardPosts(); }
+  else if (tab === 'trpg') { document.getElementById('trpg-tab').style.display = 'block'; loadTrpgTab(); }
 }
 
 function showTab(tab) { showMainTab(tab); }
@@ -214,11 +215,9 @@ function startCreate(mode) {
   document.getElementById('game-description').value = '';
   document.getElementById('game-tags').value = '';
   document.getElementById('game-author').value = currentUser ? (currentUser.displayName || currentUser.email) : '';
-  document.getElementById('library-panel').style.display = mode === 'simple' ? 'none' : 'block';
-  document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => c.checked = false);
-  document.getElementById('genre-count').textContent = '0 / 3 選択中';
-  addScene();
-}
+  const libPanel = document.getElementById('library-panel');
+  if (libPanel) libPanel.style.display = mode === 'simple' ? 'none' : 'block';
+
 
 function updateGenre() { renderTree(); }
 
@@ -1688,5 +1687,202 @@ window.openImageCrop = openImageCrop;
 window.closeCropModal = closeCropModal;
 window.loadCropImage = loadCropImage;
 window.applyCrop = applyCrop;
+window.loadTrpgTab = loadTrpgTab;
+window.showCreateCharModal = showCreateCharModal;
+window.hideCreateCharModal = hideCreateCharModal;
+window.previewCharIcon = previewCharIcon;
+window.rollStats = rollStats;
+window.updateStatSum = updateStatSum;
+window.createCharacter = createCharacter;
+window.renameChar = renameChar;
+window.deleteChar = deleteChar;
+window.startTrpgGame = startTrpgGame;
+
+function loadTrpgTab() {
+  if (!currentUser) {
+    const notLoggedIn = document.getElementById('trpg-not-logged-in');
+    const main = document.getElementById('trpg-main');
+    if (notLoggedIn) notLoggedIn.style.display = 'block';
+    if (main) main.style.display = 'none';
+    return;
+  }
+  const notLoggedIn = document.getElementById('trpg-not-logged-in');
+  const main = document.getElementById('trpg-main');
+  if (notLoggedIn) notLoggedIn.style.display = 'none';
+  if (main) main.style.display = 'block';
+  loadTrpgChars();
+  loadTrpgGames();
+}
+
+async function loadTrpgChars() {
+  if (!currentUser) return;
+  const list = document.getElementById('trpg-char-list');
+  if (!list) return;
+  list.innerHTML = '<p class="empty">読み込み中...</p>';
+  try {
+    const snapshot = await getDocs(query(collection(db, 'trpg_characters'), where('uid', '==', currentUser.uid)));
+    const chars = [];
+    snapshot.forEach(d => chars.push({ id: d.id, ...d.data() }));
+    const createBtn = document.getElementById('trpg-create-char-btn');
+    if (createBtn) createBtn.style.display = chars.length >= 2 ? 'none' : 'inline-block';
+    list.innerHTML = '';
+    if (chars.length === 0) { list.innerHTML = '<p class="empty">キャラクターがいません。作成してください！</p>'; return; }
+    chars.forEach(char => {
+      const card = document.createElement('div');
+      card.className = 'char-card' + (char.isAlive === false ? ' char-dead' : '');
+      const stats = char.stats || {};
+      const statsHTML = Object.entries(stats).map(([k,v]) => '<span class="char-stat-badge">' + k + ':' + v + '</span>').join('');
+      card.innerHTML =
+        '<div class="char-card-header">' +
+        (char.icon ? '<img src="' + char.icon + '" class="char-card-icon">' : '<div class="char-card-icon-placeholder"></div>') +
+        '<div class="char-card-info"><h3>' + char.name + (char.isAlive === false ? ' 💀' : '') + '</h3>' +
+        '<div class="char-stats-row">' + statsHTML + '</div></div></div>' +
+        '<div class="char-card-actions">' +
+        (char.isAlive !== false ? '<button class="edit-btn" onclick="renameChar(\'' + char.id + '\', \'' + char.name.replace(/'/g,"\\'") + '\')">名前変更</button>' : '') +
+        '<button class="delete-game-btn" onclick="deleteChar(\'' + char.id + '\')">削除</button>' +
+        '</div>';
+      list.appendChild(card);
+    });
+  } catch(e) { list.innerHTML = '<p class="empty">読み込みエラー</p>'; }
+}
+
+async function loadTrpgGames() {
+  const list = document.getElementById('trpg-game-list');
+  if (!list) return;
+  list.innerHTML = '<p class="empty">読み込み中...</p>';
+  try {
+    const snapshot = await getDocs(collection(db, 'games'));
+    const games = [];
+    snapshot.forEach(d => {
+      const data = { id: d.id, ...d.data() };
+      const genres = data.genres || [data.genre];
+      const tags = data.tags || [];
+      if (genres.includes('TRPG') || tags.includes('TRPG')) games.push(data);
+    });
+    list.innerHTML = '';
+    if (games.length === 0) { list.innerHTML = '<p class="empty">TRPGシナリオがまだありません</p>'; return; }
+    games.forEach(game => {
+      const card = document.createElement('div');
+      card.className = 'game-card';
+      const thumb = game.thumbnail ? '<img src="' + game.thumbnail + '" class="game-thumb">' : '<div class="game-thumb-placeholder"></div>';
+      card.innerHTML = thumb +
+        '<div class="game-card-body"><h2>' + game.title + '</h2>' +
+        '<p>' + (game.description || '') + '</p>' +
+        '<p class="game-author">製作者：' + (game.author || '不明') + '</p>' +
+        '<div class="game-card-actions"><button class="play-link" onclick="startTrpgGame(\'' + game.id + '\')">TRPGで遊ぶ</button></div></div>';
+      list.appendChild(card);
+    });
+  } catch(e) { list.innerHTML = '<p class="empty">読み込みエラー</p>'; }
+}
+
+async function startTrpgGame(gameId) {
+  if (!currentUser) { alert('ログインが必要です'); return; }
+  try {
+    const snapshot = await getDocs(query(collection(db, 'trpg_characters'), where('uid', '==', currentUser.uid)));
+    const chars = [];
+    snapshot.forEach(d => chars.push({ id: d.id, ...d.data() }));
+    const aliveChars = chars.filter(c => c.isAlive !== false);
+    if (aliveChars.length === 0) { alert('使用できるキャラクターがいません！'); return; }
+    if (aliveChars.length === 1) { location.href = 'play.html?id=' + gameId + '&charId=' + aliveChars[0].id; return; }
+    const names = aliveChars.map((c,i) => i + ': ' + c.name).join('\n');
+    const choice = prompt('使用するキャラクターを番号で選んでください：\n' + names);
+    if (choice === null) return;
+    const idx = parseInt(choice);
+    if (isNaN(idx) || idx < 0 || idx >= aliveChars.length) { alert('無効な番号です'); return; }
+    location.href = 'play.html?id=' + gameId + '&charId=' + aliveChars[idx].id;
+  } catch(e) { alert('エラー：' + e.message); }
+}
+
+function showCreateCharModal() {
+  if (!currentUser) { showLoginModal(); return; }
+  document.getElementById('create-char-modal').style.display = 'flex';
+  renderSkillCheckboxes();
+}
+
+function hideCreateCharModal() {
+  document.getElementById('create-char-modal').style.display = 'none';
+}
+
+let statRollPoints = 0;
+let charIconDataMain = null;
+
+function previewCharIcon(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    charIconDataMain = e.target.result;
+    const preview = document.getElementById('char-icon-preview');
+    if (preview) { preview.src = charIconDataMain; preview.style.display = 'block'; }
+  };
+  reader.readAsDataURL(file);
+}
+
+function rollStats() {
+  const rolls = [1,2,3].map(() => Math.floor(Math.random() * 6) + 1);
+  statRollPoints = rolls.reduce((a,b)=>a+b,0) + 10;
+  document.getElementById('stat-roll-info').textContent = '🎲 ' + rolls.join('+') + '+10 = ' + statRollPoints + '点を各ステータスに割り振ってください';
+  const statFields = document.getElementById('stat-fields');
+  const statNames = ['STR','DEX','INT','CON','POW','APP','EDU','SAN'];
+  statFields.innerHTML = statNames.map(s =>
+    '<div class="stat-item"><label>' + s + '</label><input type="number" id="stat-' + s + '" class="stat-input" min="0" value="0" oninput="updateStatSum()"></div>'
+  ).join('');
+  updateStatSum();
+}
+
+function updateStatSum() {
+  const statNames = ['STR','DEX','INT','CON','POW','APP','EDU','SAN'];
+  const total = statNames.reduce((sum,s) => { const el = document.getElementById('stat-' + s); return sum + (el ? parseInt(el.value)||0 : 0); }, 0);
+  const info = document.getElementById('stat-roll-info');
+  if (info && statRollPoints > 0) {
+    info.textContent = '合計: ' + total + ' / ' + statRollPoints + '点';
+    info.style.color = total > statRollPoints ? '#e94560' : '#00a878';
+  }
+}
+
+const SKILL_LIST_MAIN = ['図書館','説得','回避','目星','聞き耳','心理学','医学','応急手当','鍵開け','隠れる','忍び歩き','写真術','水泳','跳躍','登攀','投擲','運転','機械修理','電気修理','武器','格闘','射撃','歴史','人類学','考古学','地質学','物理学','化学','生物学','天文学','自然','変装','言語','芸術','交渉','威圧','魅惑'];
+
+function renderSkillCheckboxes() {
+  const grid = document.getElementById('skill-checkboxes');
+  if (!grid) return;
+  grid.innerHTML = SKILL_LIST_MAIN.map(s =>
+    '<label class="genre-check"><input type="checkbox" value="' + s + '">' + s + '</label>'
+  ).join('');
+}
+
+async function createCharacter() {
+  if (!currentUser) return;
+  const name = document.getElementById('char-name').value.trim();
+  if (!name) { alert('キャラクター名を入力してください'); return; }
+  const snapshot = await getDocs(query(collection(db, 'trpg_characters'), where('uid', '==', currentUser.uid)));
+  if (snapshot.size >= 2) { alert('キャラクターは最大2体まで作成できます'); return; }
+  const statNames = ['STR','DEX','INT','CON','POW','APP','EDU','SAN'];
+  const stats = {};
+  statNames.forEach(s => { const el = document.getElementById('stat-' + s); if (el) stats[s] = parseInt(el.value)||0; });
+  const selectedSkills = Array.from(document.querySelectorAll('#skill-checkboxes input:checked')).map(c => ({ name: c.value, value: Math.floor(Math.random() * 40) + 20 }));
+  const char = {
+    uid: currentUser.uid, name, icon: charIconDataMain || '',
+    stats, skills: selectedSkills, isAlive: true, inventory: [],
+    createdAt: new Date().toISOString()
+  };
+  try {
+    await addDoc(collection(db, 'trpg_characters'), char);
+    alert('「' + name + '」を作成しました！');
+    hideCreateCharModal();
+    loadTrpgChars();
+  } catch(e) { alert('エラー：' + e.message); }
+}
+
+async function renameChar(charId, currentName) {
+  const newName = prompt('新しい名前を入力', currentName);
+  if (!newName || newName === currentName) return;
+  try { await updateDoc(doc(db, 'trpg_characters', charId), { name: newName }); loadTrpgChars(); }
+  catch(e) { alert('エラー：' + e.message); }
+}
+
+async function deleteChar(charId) {
+  if (!confirm('このキャラクターを削除しますか？')) return;
+  try { await deleteDoc(doc(db, 'trpg_characters', charId)); loadTrpgChars(); }
+  catch(e) { alert('エラー：' + e.message); }
+}
 
 loadGames();

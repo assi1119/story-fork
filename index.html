@@ -260,12 +260,10 @@
             <input type="text" id="game-author" placeholder="ログイン中のユーザー名が自動入力されます" readonly>
           </div>
           <div class="form-row">
-            <label>サムネイル画像（任意）</label>
-            <div class="thumbnail-row">
+              <label>サムネイル画像（任意）</label>
               <input type="file" id="game-thumbnail" accept="image/*" onchange="previewThumbnail(this)">
-              <button class="draw-open-btn" onclick="openDrawModal('thumbnail')">🎨 お絵かきで作る</button>
+              <img id="thumbnail-preview" src="" alt="" style="display:none; width:200px; border-radius:8px; margin-top:8px;">
             </div>
-            <img id="thumbnail-preview" src="" alt="" style="display:none; width:200px; border-radius:8px; margin-top:8px;">
           </div>
         </div>
 
