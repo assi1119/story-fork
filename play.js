@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 
 const params = new URLSearchParams(window.location.search);
 const gameId = params.get('id');
+const charId = params.get('charId');
 const auth = getAuth();
 
 let game = null;
@@ -13,9 +14,16 @@ let flags = [];
 let lastDiceResult = null;
 let currentUser = null;
 let timerInterval = null;
+let trpgChar = null;
 
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
   currentUser = user;
+  if (charId && user) {
+    try {
+      const charSnap = await getDoc(doc(db, 'trpg_characters', charId));
+      if (charSnap.exists()) trpgChar = { id: charSnap.id, ...charSnap.data() };
+    } catch(e) {}
+  }
 });
 
 async function init() {
@@ -31,32 +39,51 @@ async function init() {
     state = JSON.parse(JSON.stringify(game.libraries || []));
 
     if (game.customVars) {
-      game.customVars.forEach(v => {
-        customVarState[v.name] = v.value;
-      });
+      game.customVars.forEach(v => { customVarState[v.name] = v.value; });
     }
 
     await updateDoc(docRef, { playCount: increment(1) });
 
     if (currentUser) {
       await addDoc(collection(db, 'playHistory'), {
-        uid: currentUser.uid,
-        gameId: game.id,
-        gameTitle: game.title,
-        playedAt: new Date().toISOString()
+        uid: currentUser.uid, gameId: game.id,
+        gameTitle: game.title, playedAt: new Date().toISOString()
       });
     }
 
+    if (trpgChar) renderTrpgHud();
     showScene('scene1');
   } catch (e) {
     document.getElementById('scene-text').textContent = 'エラー：' + e.message;
   }
 }
 
+function renderTrpgHud() {
+  const hud = document.getElementById('trpg-hud');
+  if (!hud || !trpgChar) return;
+  hud.style.display = 'block';
+  const stats = trpgChar.stats || {};
+  const statsHTML = Object.entries(stats).map(([k, v]) =>
+    '<span class="hud-stat"><b>' + k + '</b> ' + v + '</span>'
+  ).join('');
+  const inventory = (trpgChar.inventory || []);
+  const invHTML = inventory.length > 0
+    ? inventory.map(i => '<span class="game-tag">' + i + '</span>').join('')
+    : '<span style="color:#aaa;font-size:12px">なし</span>';
+  hud.innerHTML =
+    '<div class="hud-header">' +
+    (trpgChar.icon ? '<img src="' + trpgChar.icon + '" class="hud-icon">' : '<div class="hud-icon-placeholder"></div>') +
+    '<span class="hud-name">' + trpgChar.name + '</span>' +
+    '</div>' +
+    '<div class="hud-stats">' + statsHTML + '</div>' +
+    '<div class="hud-inventory"><b>アイテム：</b>' + invHTML + '</div>';
+}
+
 function resolveText(text) {
   return text.replace(/\{([^}]+)\}/g, (match, name) => {
     const trimmed = name.trim();
     if (customVarState[trimmed] !== undefined) return customVarState[trimmed];
+    if (trpgChar && trpgChar.stats && trpgChar.stats[trimmed] !== undefined) return trpgChar.stats[trimmed];
     const lib = state.find(l => l.name === trimmed);
     if (!lib) return match;
     if (lib.type === 'affection') {
@@ -66,7 +93,7 @@ function resolveText(text) {
     }
     if (lib.type === 'saikoro') {
       return lib.results && lib.results.length > 0
-        ? lib.results.map(r => '[' + r + ']').join(' ') + '（合計:' + lib.results.reduce((a, b) => a + b, 0) + '）'
+        ? lib.results.map(r => '[' + r + ']').join(' ') + '（合計:' + lib.results.reduce((a,b)=>a+b,0) + '）'
         : '（未振）';
     }
     if (lib.type === 'dice') return lib.result !== null ? String(lib.result) : '（未振）';
@@ -97,16 +124,74 @@ function showScene(sceneId) {
     });
     const pass = mode === 'all' ? results.every(r => r) : results.some(r => r);
     if (!pass && scene.sceneConditionFail && game.story[scene.sceneConditionFail]) {
-      showScene(scene.sceneConditionFail);
-      return;
+      showScene(scene.sceneConditionFail); return;
     }
   }
 
   document.getElementById('scene-title-display').textContent = scene.title || '';
-  document.getElementById('scene-text').textContent = resolveText(scene.text);
+  document.getElementById('scene-text').innerHTML = resolveText(scene.text).replace(/\n/g, '<br>');
+
+  // 背景画像
+  const bg = document.getElementById('scene-bg');
+  if (bg) {
+    if (scene.background) {
+      bg.style.backgroundImage = 'url(' + scene.background + ')';
+      bg.style.backgroundSize = 'cover';
+      bg.style.backgroundPosition = 'center';
+    } else {
+      bg.style.backgroundImage = '';
+    }
+  }
+
   renderStatus();
   renderButtons(scene);
   startTimers();
+
+  // 死亡シーンチェック
+  if (scene.isDeath && trpgChar && charId) {
+    killCharacter();
+  }
+}
+
+async function killCharacter() {
+  try {
+    await updateDoc(doc(db, 'trpg_characters', charId), { isAlive: false, inventory: [] });
+    trpgChar.isAlive = false;
+    trpgChar.inventory = [];
+    const hud = document.getElementById('trpg-hud');
+    if (hud) {
+      const deadMsg = document.createElement('div');
+      deadMsg.className = 'hud-dead-msg';
+      deadMsg.textContent = '💀 このキャラクターはロストしました';
+      hud.appendChild(deadMsg);
+    }
+  } catch(e) { console.log(e); }
+}
+
+async function acquireItem(itemName) {
+  if (!trpgChar || !charId) return;
+  const inventory = trpgChar.inventory || [];
+  if (inventory.includes(itemName)) return;
+  inventory.push(itemName);
+  trpgChar.inventory = inventory;
+  try {
+    await updateDoc(doc(db, 'trpg_characters', charId), { inventory });
+    renderTrpgHud();
+  } catch(e) {}
+}
+
+async function consumeItem(itemName) {
+  if (!trpgChar || !charId) return false;
+  const inventory = trpgChar.inventory || [];
+  const idx = inventory.indexOf(itemName);
+  if (idx === -1) return false;
+  inventory.splice(idx, 1);
+  trpgChar.inventory = inventory;
+  try {
+    await updateDoc(doc(db, 'trpg_characters', charId), { inventory });
+    renderTrpgHud();
+  } catch(e) {}
+  return true;
 }
 
 function renderStatus() {
@@ -117,15 +202,10 @@ function renderStatus() {
     if (lib.type === 'character') {
       const charDiv = document.createElement('div');
       charDiv.className = 'character-display';
-      if (lib.image) {
-        charDiv.innerHTML = '<img src="' + lib.image + '" class="char-img" alt="' + lib.charName + '">' +
-          '<div class="char-name">' + lib.charName + '</div>';
-      } else {
-        charDiv.innerHTML = '<div class="char-placeholder"></div>' +
-          '<div class="char-name">' + lib.charName + '</div>';
-      }
-      bar.appendChild(charDiv);
-      return;
+      charDiv.innerHTML = lib.image
+        ? '<img src="' + lib.image + '" class="char-img" alt="' + lib.charName + '"><div class="char-name">' + lib.charName + '</div>'
+        : '<div class="char-placeholder"></div><div class="char-name">' + lib.charName + '</div>';
+      bar.appendChild(charDiv); return;
     }
 
     const div = document.createElement('div');
@@ -141,7 +221,7 @@ function renderStatus() {
         (lib.result !== null ? '<span class="dice-result">→ ' + lib.result + '</span>' : '');
     } else if (lib.type === 'saikoro') {
       const diceDisplay = lib.results && lib.results.length > 0
-        ? lib.results.map(r => '[' + r + ']').join(' ') + ' 合計:' + lib.results.reduce((a, b) => a + b, 0) : '';
+        ? lib.results.map(r => '[' + r + ']').join(' ') + ' 合計:' + lib.results.reduce((a,b)=>a+b,0) : '';
       div.innerHTML = '<span class="status-name">' + lib.name + '</span>' +
         '<button class="dice-btn" onclick="rollSaikoro(' + i + ')">振る</button>' +
         (diceDisplay ? '<span class="dice-result">→ ' + diceDisplay + '</span>' : '');
@@ -172,11 +252,8 @@ function renderStatus() {
       div.id = 'timer-' + i;
       div.innerHTML = '<span class="status-name">残り時間</span>' +
         '<span class="status-value timer-value">' + (lib.remaining !== undefined ? lib.remaining : lib.seconds) + '秒</span>';
-    } else if (lib.type === 'skill' || lib.type === 'charsheet') {
-      div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + lib.value + '</span>';
     } else if (lib.type === 'flag') {
-      div.innerHTML = '<span class="status-name">' + lib.name + '</span>' +
-        '<span class="status-value">' + (lib.value ? 'ON' : 'OFF') + '</span>';
+      div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + (lib.value ? 'ON' : 'OFF') + '</span>';
     } else if (lib.type === 'status') {
       div.innerHTML = '<span class="status-name">' + lib.name + '</span><span class="status-value">' + lib.value + '</span>';
     } else {
@@ -226,7 +303,7 @@ function rollSaikoro(libIndex) {
   const results = [];
   for (let i = 0; i < lib.count; i++) results.push(Math.floor(Math.random() * 6) + 1);
   state[libIndex].results = results;
-  lastDiceResult = results.reduce((a, b) => a + b, 0);
+  lastDiceResult = results.reduce((a,b)=>a+b,0);
   renderStatus();
 }
 
@@ -251,7 +328,7 @@ function applyLibEffect(btn) {
   const lib = state.find(l => l.id === btn.libEffect.libId);
   if (!lib) return null;
   const change = btn.libEffect.change || 0;
-  if (['affection', 'san', 'counter', 'money', 'time', 'hp', 'mp', 'exp', 'level', 'score', 'skill', 'charsheet'].includes(lib.type)) {
+  if (['affection','san','counter','money','time','hp','mp','exp','level','score','skill','charsheet'].includes(lib.type)) {
     lib.value = Math.max(0, (lib.value || 0) + change);
     if (lib.type === 'exp' && lib.nextLevel && lib.value >= lib.nextLevel) {
       lib.value -= lib.nextLevel;
@@ -282,7 +359,7 @@ function applyDiceFlag(btn) {
   const lib = state.find(l => l.id === btn.diceFlag.libId);
   if (!lib) return;
   const result = lib.type === 'saikoro'
-    ? (lib.results || []).reduce((a, b) => a + b, 0)
+    ? (lib.results || []).reduce((a,b)=>a+b,0)
     : lib.result || 0;
   const min = parseInt(btn.diceFlag.min) || 1;
   if (result >= min) { if (btn.diceFlag.successFlag) flags.push(btn.diceFlag.successFlag); }
@@ -292,12 +369,8 @@ function applyDiceFlag(btn) {
 function resolveExtraDests(btn) {
   const extraDests = btn.extraDests || [];
   for (const dest of extraDests) {
-    if (dest.type === 'flag' && dest.flag && flags.includes(dest.flag)) {
-      return dest.next;
-    }
-    if (dest.type === 'random') {
-      if (Math.random() * 100 < (dest.prob || 50)) return dest.next;
-    }
+    if (dest.type === 'flag' && dest.flag && flags.includes(dest.flag)) return dest.next;
+    if (dest.type === 'random') { if (Math.random() * 100 < (dest.prob || 50)) return dest.next; }
     if (dest.type === 'var' && dest.varName) {
       const val = customVarState[dest.varName];
       if (val !== undefined && val >= dest.varMin) return dest.next;
@@ -311,16 +384,36 @@ function renderButtons(scene) {
   btns.innerHTML = '';
   scene.buttons.forEach(btn => {
     if (!checkConditions(btn)) return;
+
+    // アイテム判定（TRPGモード）
+    if (btn.requireItem && trpgChar) {
+      const hasItem = (trpgChar.inventory || []).includes(btn.requireItem);
+      if (!hasItem) {
+        const disabledBtn = document.createElement('button');
+        disabledBtn.className = 'choice-btn choice-btn-disabled';
+        disabledBtn.style.background = '#ccc';
+        disabledBtn.textContent = btn.label + '（' + btn.requireItem + 'が必要）';
+        disabledBtn.disabled = true;
+        btns.appendChild(disabledBtn);
+        return;
+      }
+    }
+
     const button = document.createElement('button');
     button.className = 'choice-btn';
     button.textContent = btn.label;
     button.style.background = btn.color;
-    button.onclick = () => {
+    button.onclick = async () => {
       if (timerInterval) clearInterval(timerInterval);
       const flagGives = Array.isArray(btn.flagGive) ? btn.flagGive : (btn.flagGive ? [btn.flagGive] : []);
       flagGives.forEach(f => { if (f) flags.push(f); });
       applyDiceFlag(btn);
       applyVarEffect(btn);
+
+      // アイテム付与・消費（TRPGモード）
+      if (btn.giveItem && trpgChar) await acquireItem(btn.giveItem);
+      if (btn.consumeItem && trpgChar) await consumeItem(btn.consumeItem);
+
       const branchScene = applyLibEffect(btn);
       const extraScene = !branchScene ? resolveExtraDests(btn) : null;
       showScene(branchScene || extraScene || btn.next);

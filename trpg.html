@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Story Fork - TRPGモード</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-logo">
+      <a href="index.html" style="text-decoration:none">
+        <h1>Story Fork</h1>
+        <span class="header-tagline">TRPGモード</span>
+      </a>
+    </div>
+    <div class="header-right">
+      <div id="user-info" style="display:none">
+        <div class="user-menu">
+          <span id="user-name" onclick="toggleUserMenu()">
+            <img id="header-avatar" src="" alt="" style="display:none">
+            <div id="header-avatar-placeholder" class="header-avatar-placeholder"></div>
+            <span id="user-name-text"></span>
+            <span class="user-caret">▾</span>
+          </span>
+          <div id="user-dropdown" style="display:none">
+            <a href="mypage.html">マイページ</a>
+            <button onclick="logout()">ログアウト</button>
+          </div>
+        </div>
+      </div>
+      <div id="login-btns">
+        <button class="login-btn" onclick="location.href='index.html'">ログイン</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="not-logged-in-msg" style="display:none">
+      <div class="login-required">
+        <h2>ログインが必要です</h2>
+        <p>TRPGモードを使うにはログインしてください</p>
+        <button class="submit-btn" onclick="location.href='index.html'">トップへ戻る</button>
+      </div>
+    </div>
+
+    <div id="trpg-main" style="display:none">
+
+      <!-- タブ -->
+      <div class="trpg-tabs">
+        <button class="trpg-tab active" onclick="switchTrpgTab('chars')">🧙 キャラクター</button>
+        <button class="trpg-tab" onclick="switchTrpgTab('play')">🎮 シナリオプレイ</button>
+        <button class="trpg-tab" onclick="switchTrpgTab('create')">✏️ シナリオ作成</button>
+      </div>
+
+      <!-- キャラクタータブ -->
+      <div id="trpg-chars-tab">
+        <div class="trpg-section-header">
+          <h2>🧙 キャラクター一覧</h2>
+          <button id="create-char-btn" class="admin-btn" onclick="showCharCreate()">＋ キャラ作成</button>
+        </div>
+        <div id="char-list"></div>
+
+        <!-- キャラ作成フォーム -->
+        <div id="char-create-form" style="display:none">
+          <div class="trpg-form-card">
+            <h3>キャラクター作成</h3>
+
+            <div class="form-row">
+              <label>キャラクター名</label>
+              <input type="text" id="char-name" placeholder="例：アリス">
+            </div>
+
+            <div class="form-row">
+              <label>アイコン画像（任意）</label>
+              <input type="file" id="char-icon" accept="image/*" onchange="previewCharIcon(this)">
+              <img id="char-icon-preview" src="" alt="" style="display:none; width:80px; height:80px; border-radius:50%; margin-top:8px; object-fit:cover;">
+            </div>
+
+            <div class="form-row">
+              <label>ステータスタイプ</label>
+              <div class="stat-type-btns">
+                <button class="stat-type-btn active" onclick="setStatType('template')">テンプレ（STR等）</button>
+                <button class="stat-type-btn" onclick="setStatType('free')">フリー入力</button>
+              </div>
+            </div>
+
+            <div id="stat-roll-section">
+              <div class="form-row">
+                <label>ステータスに振れる合計点数（ダイスで決定）</label>
+                <button class="dice-roll-btn" onclick="rollStatPoints()">🎲 ダイスを振る（3d6+10）</button>
+                <span id="stat-points-display" class="stat-points-display">まだ振っていません</span>
+              </div>
+            </div>
+
+            <!-- テンプレートステータス -->
+            <div id="template-stats">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <label>STR（筋力）</label>
+                  <input type="number" id="stat-STR" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+                <div class="stat-item">
+                  <label>DEX（敏捷）</label>
+                  <input type="number" id="stat-DEX" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+                <div class="stat-item">
+                  <label>INT（知力）</label>
+                  <input type="number" id="stat-INT" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+                <div class="stat-item">
+                  <label>CON（体力）</label>
+                  <input type="number" id="stat-CON" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+                <div class="stat-item">
+                  <label>POW（精神）</label>
+                  <input type="number" id="stat-POW" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+                <div class="stat-item">
+                  <label>APP（外見）</label>
+                  <input type="number" id="stat-APP" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+                <div class="stat-item">
+                  <label>EDU（教育）</label>
+                  <input type="number" id="stat-EDU" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+                <div class="stat-item">
+                  <label>SAN（正気度）</label>
+                  <input type="number" id="stat-SAN" class="stat-input" min="0" value="0" oninput="updateStatTotal()">
+                </div>
+              </div>
+              <p id="stat-total-display" class="stat-total-display">合計: 0 / 0点</p>
+            </div>
+
+            <!-- フリーステータス -->
+            <div id="free-stats" style="display:none">
+              <div id="free-stat-list"></div>
+              <button class="add-btn" onclick="addFreeStat()">＋ ステータスを追加</button>
+            </div>
+
+            <!-- 技能値 -->
+            <div class="form-row">
+              <label>技能値（選択してください）</label>
+              <div id="skill-list" class="skill-grid"></div>
+              <button class="add-btn" onclick="addSkill()">＋ 技能を追加</button>
+            </div>
+
+            <div class="form-actions">
+              <button class="submit-btn" onclick="saveChar()">キャラクターを作成</button>
+              <button class="back-form-btn" onclick="hideCharCreate()">キャンセル</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- シナリオプレイタブ -->
+      <div id="trpg-play-tab" style="display:none">
+        <h2>🎮 TRPGシナリオを選んで遊ぶ</h2>
+        <p class="lib-hint">TRPGタグのついたゲームをプレイします。キャラクターのステータスが物語に影響します。</p>
+        <div id="trpg-game-list"><p class="empty">読み込み中...</p></div>
+      </div>
+
+      <!-- シナリオ作成タブ -->
+      <div id="trpg-create-tab" style="display:none">
+        <h2>✏️ TRPGシナリオを作る</h2>
+        <p class="lib-hint">通常のゲーム作成と同じですが、TRPGタグが自動で付与されます。</p>
+        <button class="submit-btn" onclick="location.href='index.html'">ゲーム作成画面へ</button>
+      </div>
+
+    </div>
+
+    <!-- キャラ選択モーダル -->
+    <div id="char-select-modal" style="display:none">
+      <div class="modal-overlay" onclick="hideCharSelectModal()"></div>
+      <div class="modal">
+        <h2>使用するキャラクターを選択</h2>
+        <div id="char-select-list"></div>
+        <button class="modal-close" onclick="hideCharSelectModal()">✕ 閉じる</button>
+      </div>
+    </div>
+
+    <!-- キャラ詳細モーダル -->
+    <div id="char-detail-modal" style="display:none">
+      <div class="modal-overlay" onclick="hideCharDetailModal()"></div>
+      <div class="modal">
+        <h2 id="char-detail-name"></h2>
+        <div id="char-detail-content"></div>
+        <button class="modal-close" onclick="hideCharDetailModal()">✕ 閉じる</button>
+      </div>
+    </div>
+
+  </main>
+
+  <script type="module" src="trpg.js"></script>
+</body>
+</html>

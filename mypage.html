@@ -19,7 +19,8 @@
       <div id="user-info" style="display:none">
         <div class="user-menu">
           <span id="user-name" onclick="toggleUserMenu()">
-            <span class="user-at">@</span>
+            <img id="header-avatar" src="" alt="" style="display:none">
+            <div id="header-avatar-placeholder" class="header-avatar-placeholder"></div>
             <span id="user-name-text"></span>
             <span class="user-caret">▾</span>
           </span>
@@ -32,54 +33,63 @@
       <div id="login-btns" style="display:none">
         <button class="login-btn" onclick="location.href='index.html'">ログイン</button>
       </div>
-      <nav>
-        <a href="index.html" class="tab-btn">トップへ</a>
-      </nav>
     </div>
   </header>
 
   <main>
-    <div id="mypage-content">
-      <div id="not-logged-in-msg" style="display:none">
-        <div class="login-required">
-          <h2>ログインが必要です</h2>
-          <p>マイページを見るにはログインしてください</p>
-          <button class="submit-btn" onclick="location.href='index.html'">トップへ戻る</button>
+    <div id="not-logged-in-msg" style="display:none">
+      <div class="login-required">
+        <h2>ログインが必要です</h2>
+        <p>マイページを見るにはログインしてください</p>
+        <button class="submit-btn" onclick="location.href='index.html'">トップへ戻る</button>
+      </div>
+    </div>
+
+    <div id="mypage-main" style="display:none">
+
+      <div class="mypage-header">
+        <div class="mypage-avatar-wrap">
+          <img id="mypage-avatar-img" src="" alt="" style="display:none">
+          <div id="mypage-avatar-placeholder" class="mypage-avatar"></div>
+          <label class="avatar-upload-btn">
+            写真を変更
+            <input type="file" id="avatar-upload" accept="image/*" onchange="uploadAvatar(this)" style="display:none">
+          </label>
         </div>
+        <div class="mypage-user-info">
+          <h2 id="mypage-username"></h2>
+          <p id="mypage-at-name" class="mypage-at-name"></p>
+          <p id="mypage-email" class="mypage-email"></p>
+          <div id="username-form">
+            <input type="text" id="username-input" placeholder="@ユーザー名を設定">
+            <button class="submit-btn" onclick="saveUsername()">設定する</button>
+          </div>
+          <div class="follow-stats">
+            <span id="following-count" class="follow-stat">0 フォロー中</span>
+            <span id="follower-count" class="follow-stat">0 フォロワー</span>
+          </div>
+        </div>
+        <button class="footer-logout-btn" onclick="logout()">ログアウト</button>
       </div>
 
-      <div id="mypage-main" style="display:none">
-        <div class="mypage-header">
-          <div class="mypage-avatar-wrap">
-            <img id="mypage-avatar-img" src="" alt="" style="display:none">
-            <div id="mypage-avatar-placeholder" class="mypage-avatar"></div>
-            <label class="avatar-upload-btn">
-              写真を変更
-              <input type="file" id="avatar-upload" accept="image/*" onchange="uploadAvatar(this)" style="display:none">
-            </label>
-          </div>
-          <div class="mypage-user-info">
-            <h2 id="mypage-username"></h2>
-            <p id="mypage-at-name" class="mypage-at-name"></p>
-            <p id="mypage-email" class="mypage-email"></p>
-            <div id="username-form" style="display:none">
-              <input type="text" id="username-input" placeholder="ユーザー名を設定（@マークで表示）">
-              <button class="submit-btn" onclick="saveUsername()">設定する</button>
-            </div>
-          </div>
-          <button class="footer-logout-btn" onclick="logout()">ログアウト</button>
-        </div>
-
-        <div class="mypage-section">
-          <h3>自分の作品</h3>
-          <div id="my-games"></div>
-        </div>
-
-        <div class="mypage-section">
-          <h3>プレイ履歴</h3>
-          <div id="play-history"></div>
-        </div>
+      <div class="mypage-tabs">
+        <button class="mypage-tab active" onclick="switchMypageTab('games', this)">自分の作品</button>
+        <button class="mypage-tab" onclick="switchMypageTab('history', this)">プレイ履歴</button>
+        <button class="mypage-tab" onclick="switchMypageTab('favorites', this)">お気に入り</button>
       </div>
+
+      <div id="tab-games">
+        <div id="my-games-list"></div>
+      </div>
+
+      <div id="tab-history" style="display:none">
+        <div id="play-history-list"></div>
+      </div>
+
+      <div id="tab-favorites" style="display:none">
+        <div id="favorites-list"></div>
+      </div>
+
     </div>
   </main>
 

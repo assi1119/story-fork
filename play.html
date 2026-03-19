@@ -5,23 +5,144 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Story Fork - プレイ</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    #game-container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+    #game-title-display {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    #scene-bg {
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      min-height: 4px;
+      transition: background-image 0.3s;
+    }
+    #scene-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 4px 20px rgba(0,200,150,0.1);
+      border: 2px solid #e0f5ee;
+      margin-bottom: 20px;
+    }
+    #scene-title-display {
+      font-size: 18px;
+      font-weight: 700;
+      color: #00c896;
+      margin-bottom: 12px;
+    }
+    #scene-text {
+      font-size: 16px;
+      line-height: 1.9;
+      color: #1a1a1a;
+      white-space: pre-wrap;
+    }
+    #status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    #buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .choice-btn-disabled {
+      opacity: 0.5;
+      cursor: not-allowed !important;
+    }
+    #trpg-hud {
+      display: none;
+      background: #fff;
+      border: 2px solid #b2ead8;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .hud-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .hud-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #b2ead8;
+    }
+    .hud-icon-placeholder {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #00c896;
+    }
+    .hud-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    .hud-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .hud-stat {
+      background: #e6faf3;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: #00a878;
+    }
+    .hud-inventory {
+      font-size: 12px;
+      color: #555;
+    }
+    .hud-dead-msg {
+      background: #fee;
+      color: #e94560;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 8px;
+      text-align: center;
+    }
+    #back-btn {
+      display: block;
+      text-align: center;
+      color: #aaa;
+      text-decoration: none;
+      font-size: 13px;
+      margin-top: 24px;
+      transition: color 0.2s;
+    }
+    #back-btn:hover { color: #00c896; }
+  </style>
 </head>
 <body>
-
-  <header>
-    <a href="index.html" class="back-btn">← 一覧に戻る</a>
-    <h1 id="game-title-display"></h1>
-  </header>
-
-  <main>
+  <div id="game-container">
+    <p id="game-title-display"></p>
+    <div id="trpg-hud"></div>
     <div id="status-bar"></div>
-    <div id="game">
-      <h2 id="scene-title-display"></h2>
-      <p id="scene-text"></p>
-      <div id="buttons"></div>
+    <div id="scene-bg"></div>
+    <div id="scene-card">
+      <div id="scene-title-display"></div>
+      <div id="scene-text">読み込み中...</div>
     </div>
-  </main>
-
+    <div id="buttons"></div>
+    <a href="index.html" id="back-btn">← トップに戻る</a>
+  </div>
   <script type="module" src="play.js"></script>
 </body>
 </html>
