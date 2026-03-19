@@ -179,8 +179,13 @@ function showTab(tab) { showMainTab(tab); }
 function switchCreateTab(tab) {
   document.querySelectorAll('.create-tab-btn').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
-  document.getElementById('editor-panel').style.display = tab === 'editor' ? 'block' : 'none';
-  document.getElementById('draw-panel').style.display = tab === 'draw' ? 'block' : 'none';
+  const panels = ['create-info-tab','create-library-tab','create-scenes-tab','create-draw-tab'];
+  panels.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const target = document.getElementById('create-' + tab + '-tab');
+  if (target) target.style.display = 'block';
   if (tab === 'draw') initDrawCanvas();
 }
 
@@ -215,8 +220,8 @@ function startCreate(mode) {
   document.getElementById('game-description').value = '';
   document.getElementById('game-tags').value = '';
   document.getElementById('game-author').value = currentUser ? (currentUser.displayName || currentUser.email) : '';
-  const libPanel = document.getElementById('library-panel');
-  if (libPanel) libPanel.style.display = mode === 'simple' ? 'none' : 'block';
+   const libTab = document.querySelector('.create-tab-btn:nth-child(2)');
+  if (libTab) libTab.style.display = mode === 'simple' ? 'none' : 'flex';
 
 
 function updateGenre() { renderTree(); }

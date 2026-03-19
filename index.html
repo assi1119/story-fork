@@ -80,89 +80,41 @@
     </div>
   </div>
 
-  <!-- お絵かきボード モーダル -->
-  <div id="draw-modal" style="display:none">
-    <div class="modal-overlay" onclick="closeDrawModal()"></div>
-    <div class="draw-modal-content">
-      <div class="draw-toolbar">
-        <div class="draw-tool-group">
-          <button class="draw-tool-btn active" id="tool-pen" onclick="setTool('pen')" title="ペン">✏️</button>
-          <button class="draw-tool-btn" id="tool-eraser" onclick="setTool('eraser')" title="消しゴム">🧹</button>
-          <button class="draw-tool-btn" id="tool-fill" onclick="setTool('fill')" title="塗りつぶし">🪣</button>
-          <button class="draw-tool-btn" id="tool-eyedropper" onclick="setTool('eyedropper')" title="スポイト">💉</button>
-        </div>
-        <div class="draw-tool-group">
-          <label class="draw-label">モード</label>
-          <select id="draw-mode" onchange="setDrawMode(this.value)" class="draw-select">
-            <option value="normal">イラスト</option>
-            <option value="dot">ドット絵</option>
-          </select>
-          <div id="dot-size-wrap" style="display:none">
-            <label class="draw-label">粗さ</label>
-            <select id="dot-size" onchange="setDotSize(parseInt(this.value))" class="draw-select">
-              <option value="1">1px（超細かい）</option>
-              <option value="2">2px（細かい）</option>
-              <option value="4">4px（小ドット）</option>
-              <option value="8" selected>8px（標準）</option>
-              <option value="16">16px（荒い）</option>
-              <option value="32">32px（超荒い）</option>
-              <option value="64">64px（めちゃ荒い）</option>
-            </select>
-          </div>
-        </div>
-        <div class="draw-tool-group">
-          <label class="draw-label">太さ</label>
-          <input type="range" id="brush-size" min="1" max="50" value="4" oninput="setBrushSize(parseInt(this.value))">
-          <span id="brush-size-label">4px</span>
-        </div>
-        <div class="draw-tool-group">
-          <label class="draw-label">色</label>
-          <input type="color" id="draw-color" value="#000000" oninput="setColor(this.value)">
-        </div>
-        <div class="draw-tool-group">
-          <div class="draw-palette" id="draw-palette"></div>
-        </div>
-        <div class="draw-tool-group">
-          <button class="draw-action-btn" onclick="undoDraw()" title="戻す">↩</button>
-          <button class="draw-action-btn" onclick="redoDraw()" title="進める">↪</button>
-          <button class="draw-action-btn" onclick="clearDraw()" title="全消去">🗑️</button>
-        </div>
-        <div class="draw-tool-group">
-          <label class="draw-label">ズーム</label>
-          <button class="draw-action-btn" onclick="zoomIn()">＋</button>
-          <button class="draw-action-btn" onclick="zoomOut()">－</button>
-          <button class="draw-action-btn" onclick="resetZoom()">リセット</button>
-        </div>
+  <!-- キャラクター作成モーダル -->
+  <div id="create-char-modal" style="display:none">
+    <div class="modal-overlay" onclick="hideCreateCharModal()"></div>
+    <div class="modal" style="max-width:560px">
+      <h2>キャラクター作成</h2>
+      <div class="form-row">
+        <label>キャラクター名</label>
+        <input type="text" id="char-name" placeholder="名前を入力">
       </div>
-      <div class="draw-main">
-        <div class="draw-layers-panel">
-          <div class="draw-layers-title">レイヤー</div>
-          <div id="layers-list"></div>
-          <button class="add-btn" onclick="addLayer()">＋ レイヤー追加</button>
-        </div>
-        <div class="draw-canvas-wrap" id="draw-canvas-wrap">
-          <canvas id="draw-canvas" width="600" height="400"></canvas>
-        </div>
+      <div class="form-row">
+        <label>アイコン画像（任意）</label>
+        <input type="file" id="char-icon" accept="image/*" onchange="previewCharIcon(this)">
+        <img id="char-icon-preview" src="" alt="" style="display:none; width:80px; height:80px; border-radius:50%; margin-top:8px; object-fit:cover;">
       </div>
-      <div class="draw-footer">
-        <div class="draw-output-btns">
-          <button class="submit-btn" onclick="applyDrawAs('thumbnail')">サムネイルとして使用</button>
-          <button class="submit-btn" onclick="applyDrawAs('scene-bg')">シーン背景として使用</button>
-          <button class="submit-btn" onclick="applyDrawAs('character')">キャラとして使用</button>
-          <button class="submit-btn" onclick="applyDrawAs('save')">画像を保存</button>
+      <div class="form-row">
+        <label>ステータス割り振り</label>
+        <div class="stat-roll-area">
+          <button class="submit-btn" onclick="rollStats()">🎲 ダイスで決定（3d6+10）</button>
+          <span id="stat-roll-info" class="lib-hint" style="margin-top:8px;display:block">ボタンを押してステータスを決定してください</span>
         </div>
-        <div class="draw-import-area">
-          <label class="avatar-upload-btn">
-            📁 画像を読み込む
-            <input type="file" id="draw-import-file" accept="image/*" onchange="importImage(this)" style="display:none">
-          </label>
-        </div>
-        <button class="back-form-btn" onclick="closeDrawModal()">✕ 閉じる</button>
+        <div id="stat-fields" class="stats-grid" style="margin-top:12px"></div>
+      </div>
+      <div class="form-row">
+        <label>技能値（複数選択可）</label>
+        <div id="skill-checkboxes" class="genre-checkbox-grid"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="submit-btn" onclick="createCharacter()">作成する</button>
+        <button class="modal-close" onclick="hideCreateCharModal()">キャンセル</button>
       </div>
     </div>
   </div>
 
   <main>
+
     <!-- 遊ぶタブ -->
     <div id="play-tab">
       <div class="sort-bar">
@@ -210,13 +162,16 @@
             <h3>普通モード</h3>
             <p>フラグ・ライブラリ・変数など全機能が使えます</p>
           </div>
+          <div class="mode-card" onclick="showMainTab('trpg')">
+            <h3>🎲 TRPGモード</h3>
+            <p>キャラクターの永続データを使ったシナリオを作れます</p>
+          </div>
         </div>
       </div>
       <div id="game-form" style="display:none">
         <button class="back-form-btn" onclick="backToModeSelect()">← 選択画面に戻る</button>
         <button class="draft-save-btn" onclick="saveDraft()">💾 下書き保存</button>
 
-        <!-- 作成タブ -->
         <div class="create-tabs">
           <button class="create-tab-btn active" onclick="switchCreateTab('info')">📝 基本情報</button>
           <button class="create-tab-btn" onclick="switchCreateTab('library')">📚 ライブラリ</button>
@@ -224,7 +179,7 @@
           <button class="create-tab-btn" onclick="switchCreateTab('draw')">🎨 お絵かき</button>
         </div>
 
-        <!-- 基本情報タブ -->
+        <!-- 基本情報 -->
         <div id="create-info-tab">
           <div class="form-row">
             <label>タイトル</label>
@@ -260,17 +215,16 @@
             <input type="text" id="game-author" placeholder="ログイン中のユーザー名が自動入力されます" readonly>
           </div>
           <div class="form-row">
-              <label>サムネイル画像（任意）</label>
-              <input type="file" id="game-thumbnail" accept="image/*" onchange="previewThumbnail(this)">
-              <img id="thumbnail-preview" src="" alt="" style="display:none; width:200px; border-radius:8px; margin-top:8px;">
-            </div>
+            <label>サムネイル画像（任意）</label>
+            <input type="file" id="game-thumbnail" accept="image/*" onchange="previewThumbnail(this)">
+            <img id="thumbnail-preview" src="" alt="" style="display:none; width:200px; border-radius:8px; margin-top:8px;">
           </div>
         </div>
 
-        <!-- ライブラリタブ -->
+        <!-- ライブラリ -->
         <div id="create-library-tab" style="display:none">
           <h3>要素ライブラリ</h3>
-          <p class="lib-hint">選択肢を押したときに変化するパラメータを追加できます。{ ライブラリ名 } と書くとテキストに値を表示できます。</p>
+          <p class="lib-hint">{ ライブラリ名 } と書くとテキストに値を表示できます。</p>
           <div id="library-list"></div>
           <div id="library-buttons">
             <button onclick="addLibrary('affection')">好感度</button>
@@ -296,81 +250,104 @@
           </div>
           <div class="custom-var-section">
             <h4>オリジナル変数</h4>
-            <p class="lib-hint">シナリオ限定の独自変数を作れます。{ 変数名 } でテキストに表示できます。</p>
+            <p class="lib-hint">{ 変数名 } でテキストに表示できます。</p>
             <div id="custom-var-list"></div>
             <button class="add-btn" onclick="addCustomVar()">＋ オリジナル変数を追加</button>
           </div>
         </div>
 
-        <!-- シーン編集タブ -->
+        <!-- シーン編集 -->
         <div id="create-scenes-tab" style="display:none">
-          <div class="scene-toolbar">
+          <div class="tree-header">
             <h3>シーンツリー <span id="scene-stats" class="scene-stats"></span></h3>
-            <button class="add-btn" onclick="sortScenes()">🔤 自動整列</button>
+            <button class="sort-scenes-btn" onclick="sortScenes()">🔀 自動整列</button>
           </div>
           <div id="scene-tree"></div>
-          <button class="add-btn" onclick="addScene()" style="margin-top:12px">＋ シーン追加</button>
         </div>
 
-        <!-- お絵かきタブ -->
+        <!-- お絵かき -->
         <div id="create-draw-tab" style="display:none">
-          <div class="draw-inline-wrap">
-            <div class="draw-toolbar-inline">
-              <div class="draw-tool-group">
-                <button class="draw-tool-btn active" id="tool-pen-inline" onclick="setToolInline('pen')">✏️ ペン</button>
-                <button class="draw-tool-btn" id="tool-eraser-inline" onclick="setToolInline('eraser')">🧹 消しゴム</button>
-                <button class="draw-tool-btn" id="tool-fill-inline" onclick="setToolInline('fill')">🪣 塗りつぶし</button>
-                <button class="draw-tool-btn" id="tool-eyedropper-inline" onclick="setToolInline('eyedropper')">💉 スポイト</button>
-              </div>
-              <div class="draw-tool-group">
-                <select id="draw-mode-inline" onchange="setDrawModeInline(this.value)" class="draw-select">
-                  <option value="normal">イラスト</option>
-                  <option value="dot">ドット絵</option>
+          <div class="draw-toolbar">
+            <div class="draw-tool-group">
+              <button class="draw-tool active" id="tool-pen" onclick="setDrawTool('pen')">✏️</button>
+              <button class="draw-tool" id="tool-eraser" onclick="setDrawTool('eraser')">🧹</button>
+              <button class="draw-tool" id="tool-fill" onclick="setDrawTool('fill')">🪣</button>
+              <button class="draw-tool" id="tool-eyedrop" onclick="setDrawTool('eyedrop')">💉</button>
+              <button class="draw-tool" id="tool-move" onclick="setDrawTool('move')">✋</button>
+            </div>
+            <div class="draw-tool-group">
+              <label class="draw-label">モード</label>
+              <select id="draw-mode" onchange="setDrawMode(this.value)">
+                <option value="normal">イラスト</option>
+                <option value="dot">ドット絵</option>
+              </select>
+              <div id="dot-size-group" style="display:none">
+                <label class="draw-label">粗さ</label>
+                <select id="dot-size" onchange="setDotSize(parseInt(this.value))">
+                  <option value="1">1px（超細かい）</option>
+                  <option value="2">2px（細かい）</option>
+                  <option value="4">4px（小さい）</option>
+                  <option value="8" selected>8px（標準）</option>
+                  <option value="16">16px（荒い）</option>
+                  <option value="32">32px（超荒い）</option>
+                  <option value="64">64px（めちゃ荒い）</option>
                 </select>
-                <div id="dot-size-wrap-inline" style="display:none">
-                  <select id="dot-size-inline" onchange="setDotSizeInline(parseInt(this.value))" class="draw-select">
-                    <option value="1">1px</option>
-                    <option value="2">2px</option>
-                    <option value="4">4px</option>
-                    <option value="8" selected>8px</option>
-                    <option value="16">16px</option>
-                    <option value="32">32px</option>
-                    <option value="64">64px</option>
-                  </select>
-                </div>
-              </div>
-              <div class="draw-tool-group">
-                <input type="range" id="brush-size-inline" min="1" max="50" value="4" oninput="setBrushSizeInline(parseInt(this.value))">
-                <span id="brush-size-label-inline">4px</span>
-                <input type="color" id="draw-color-inline" value="#000000" oninput="setColorInline(this.value)">
-              </div>
-              <div class="draw-palette" id="draw-palette-inline"></div>
-              <div class="draw-tool-group">
-                <button class="draw-action-btn" onclick="undoDrawInline()">↩</button>
-                <button class="draw-action-btn" onclick="redoDrawInline()">↪</button>
-                <button class="draw-action-btn" onclick="clearDrawInline()">🗑️</button>
-                <button class="draw-action-btn" onclick="zoomInInline()">＋</button>
-                <button class="draw-action-btn" onclick="zoomOutInline()">－</button>
               </div>
             </div>
-            <div class="draw-main-inline">
-              <div class="draw-layers-panel">
-                <div class="draw-layers-title">レイヤー</div>
-                <div id="layers-list-inline"></div>
-                <button class="add-btn" onclick="addLayerInline()">＋</button>
-              </div>
-              <div class="draw-canvas-wrap" id="draw-canvas-wrap-inline">
-                <canvas id="draw-canvas-inline" width="560" height="380"></canvas>
-              </div>
+            <div class="draw-tool-group">
+              <label class="draw-label">太さ</label>
+              <input type="range" id="pen-size" min="1" max="50" value="4" oninput="setPenSize(this.value)">
+              <span id="pen-size-display">4</span>
             </div>
-            <div class="draw-output-btns">
-              <button class="submit-btn" onclick="applyDrawInlineAs('thumbnail')">サムネイルとして使用</button>
-              <button class="submit-btn" onclick="applyDrawInlineAs('character')">キャラとして使用</button>
-              <button class="submit-btn" onclick="applyDrawInlineAs('save')">画像を保存</button>
-              <label class="avatar-upload-btn">
-                📁 画像読み込み
-                <input type="file" id="draw-import-inline" accept="image/*" onchange="importImageInline(this)" style="display:none">
-              </label>
+            <div class="draw-tool-group">
+              <label class="draw-label">色</label>
+              <input type="color" id="draw-color" value="#000000" onchange="setDrawColor(this.value)">
+            </div>
+            <div class="draw-tool-group draw-palette">
+              <span class="palette-swatch" style="background:#000000" onclick="setDrawColor('#000000')"></span>
+              <span class="palette-swatch" style="background:#ffffff" onclick="setDrawColor('#ffffff')"></span>
+              <span class="palette-swatch" style="background:#e94560" onclick="setDrawColor('#e94560')"></span>
+              <span class="palette-swatch" style="background:#00c896" onclick="setDrawColor('#00c896')"></span>
+              <span class="palette-swatch" style="background:#1a6fc4" onclick="setDrawColor('#1a6fc4')"></span>
+              <span class="palette-swatch" style="background:#7f77dd" onclick="setDrawColor('#7f77dd')"></span>
+              <span class="palette-swatch" style="background:#e8760a" onclick="setDrawColor('#e8760a')"></span>
+              <span class="palette-swatch" style="background:#ffd700" onclick="setDrawColor('#ffd700')"></span>
+              <span class="palette-swatch" style="background:#888888" onclick="setDrawColor('#888888')"></span>
+            </div>
+            <div class="draw-tool-group">
+              <button class="draw-action-btn" onclick="drawUndo()">↩️</button>
+              <button class="draw-action-btn" onclick="drawRedo()">↪️</button>
+              <button class="draw-action-btn" onclick="drawClear()">🗑️</button>
+              <button class="draw-action-btn" onclick="drawZoomIn()">＋</button>
+              <button class="draw-action-btn" onclick="drawZoomOut()">－</button>
+              <button class="draw-action-btn" onclick="drawResetZoom()">1:1</button>
+            </div>
+          </div>
+          <div class="draw-layers-panel">
+            <div class="draw-layers-header">
+              <span>レイヤー</span>
+              <button class="add-btn" onclick="addLayer()">＋</button>
+            </div>
+            <div id="layer-list"></div>
+          </div>
+          <div class="draw-canvas-wrap" id="draw-canvas-wrap">
+            <canvas id="draw-canvas" width="800" height="600"></canvas>
+          </div>
+          <div class="draw-output-btns">
+            <button class="submit-btn" onclick="applyDrawAsThumbnail()">サムネイルに使用</button>
+            <button class="submit-btn" onclick="applyDrawAsBackground()">シーン背景に使用</button>
+            <button class="submit-btn" onclick="applyDrawAsCharacter()">キャラ立ち絵に使用</button>
+            <label class="avatar-upload-btn">
+              📁 画像読み込み＆トリミング
+              <input type="file" id="crop-input" accept="image/*" onchange="loadCropImage(this)" style="display:none">
+            </label>
+          </div>
+          <div id="crop-preview-area" style="display:none;margin-top:12px;">
+            <canvas id="crop-canvas" width="400" height="300" style="border:2px solid #b2ead8;border-radius:8px;"></canvas>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button class="submit-btn" onclick="applyCrop('thumbnail')">サムネイルに使用</button>
+              <button class="submit-btn" onclick="applyCrop('background')">背景に使用</button>
+              <button class="submit-btn" onclick="applyCrop('character')">キャラに使用</button>
             </div>
           </div>
         </div>
@@ -408,7 +385,7 @@
       <div id="board-list"><p class="empty">読み込み中...</p></div>
     </div>
 
-    <!-- TRPGモードタブ -->
+    <!-- TRPGタブ -->
     <div id="trpg-tab" style="display:none">
       <div class="tab-header">
         <h2>🎲 TRPGモード</h2>
@@ -420,52 +397,20 @@
         </div>
       </div>
       <div id="trpg-main" style="display:none">
-        <div class="trpg-chars-section">
+        <div class="trpg-section-header">
           <h3>あなたのキャラクター</h3>
-          <div id="trpg-char-list"></div>
-          <button id="trpg-create-char-btn" class="submit-btn" onclick="showCreateCharModal()">＋ キャラクターを作成</button>
+          <button id="trpg-create-char-btn" class="admin-btn" onclick="showCreateCharModal()">＋ キャラクターを作成</button>
         </div>
-        <div class="trpg-games-section">
+        <div id="trpg-char-list"></div>
+        <div style="margin-top:24px;">
           <h3>TRPGシナリオ一覧</h3>
+          <p class="lib-hint">TRPGジャンルのゲームが表示されます</p>
           <div id="trpg-game-list"></div>
         </div>
       </div>
     </div>
 
   </main>
-
-  <!-- キャラクター作成モーダル -->
-  <div id="create-char-modal" style="display:none">
-    <div class="modal-overlay" onclick="hideCreateCharModal()"></div>
-    <div class="modal" style="max-width:560px">
-      <h2>キャラクター作成</h2>
-      <div class="form-row">
-        <label>キャラクター名</label>
-        <input type="text" id="char-name" placeholder="名前を入力">
-      </div>
-      <div class="form-row">
-        <label>アイコン画像（任意）</label>
-        <input type="file" id="char-icon" accept="image/*" onchange="previewCharIcon(this)">
-        <img id="char-icon-preview" src="" alt="" style="display:none; width:80px; height:80px; border-radius:50%; margin-top:8px; object-fit:cover;">
-      </div>
-      <div class="form-row">
-        <label>ステータス割り振り</label>
-        <div class="stat-roll-area">
-          <button class="submit-btn" onclick="rollStats()">🎲 ダイスで決定（3d6+10）</button>
-          <span id="stat-roll-info" class="lib-hint" style="margin-top:8px;display:block">ボタンを押してステータスを決定してください</span>
-        </div>
-        <div id="stat-fields" class="stat-fields"></div>
-      </div>
-      <div class="form-row">
-        <label>技能値（複数選択可）</label>
-        <div id="skill-checkboxes" class="skill-checkbox-grid"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="submit-btn" onclick="createCharacter()">作成する</button>
-        <button class="modal-close" onclick="hideCreateCharModal()">キャンセル</button>
-      </div>
-    </div>
-  </div>
 
   <script type="module" src="index.js"></script>
 </body>
