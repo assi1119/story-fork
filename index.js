@@ -222,6 +222,8 @@ function startCreate(mode) {
   document.getElementById('game-author').value = currentUser ? (currentUser.displayName || currentUser.email) : '';
    const libTab = document.querySelector('.create-tab-btn:nth-child(2)');
   if (libTab) libTab.style.display = mode === 'simple' ? 'none' : 'flex';
+  addScene();
+}
 
 
 function updateGenre() { renderTree(); }
@@ -1239,7 +1241,8 @@ async function loadDraftById(draft) {
   document.getElementById('game-description').value = draft.description || '';
   document.getElementById('game-tags').value = (draft.tags || []).join(' ');
   document.getElementById('game-author').value = draft.author || '';
-  document.getElementById('library-panel').style.display = currentMode === 'simple' ? 'none' : 'block';
+    const libTabEl = document.querySelector('.create-tab-btn:nth-child(2)');
+  if (libTabEl) libTabEl.style.display = currentMode === 'simple' ? 'none' : 'flex';
   document.querySelectorAll('#genre-checkboxes input[type="checkbox"]').forEach(c => {
     c.checked = currentGenre.includes(c.value);
   });
