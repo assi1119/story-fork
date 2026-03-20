@@ -33,8 +33,19 @@
       <div id="login-btns" style="display:none">
         <button class="login-btn" onclick="location.href='index.html'">ログイン</button>
       </div>
+      <a href="index.html" class="login-btn" style="text-decoration:none">🏠 ホーム</a>
     </div>
   </header>
+
+  <!-- フォローリストモーダル -->
+  <div id="follow-modal" style="display:none">
+    <div class="modal-overlay" onclick="hideFollowModal()"></div>
+    <div class="modal">
+      <h2 id="follow-modal-title">フォロー中</h2>
+      <div id="follow-modal-list" style="max-height:400px;overflow-y:auto;"></div>
+      <button class="modal-close" onclick="hideFollowModal()">✕ 閉じる</button>
+    </div>
+  </div>
 
   <main>
     <div id="not-logged-in-msg" style="display:none">
@@ -65,8 +76,8 @@
             <button class="submit-btn" onclick="saveUsername()">設定する</button>
           </div>
           <div class="follow-stats">
-            <span id="following-count" class="follow-stat">0 フォロー中</span>
-            <span id="follower-count" class="follow-stat">0 フォロワー</span>
+            <span id="following-count" class="follow-stat" onclick="showFollowList('following')">0 フォロー中</span>
+            <span id="follower-count" class="follow-stat" onclick="showFollowList('followers')">0 フォロワー</span>
           </div>
         </div>
         <button class="footer-logout-btn" onclick="logout()">ログアウト</button>

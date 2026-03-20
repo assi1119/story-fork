@@ -1060,3 +1060,26 @@ main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
   .mypage-game-card { flex-direction: column; align-items: flex-start; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+.follow-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 2px solid var(--border);
+  gap: 12px;
+}
+.follow-list-item:last-child { border-bottom: none; }
+.follow-list-user { display: flex; align-items: center; gap: 12px; }
+.follow-list-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  object-fit: cover; border: 3px solid var(--mint);
+}
+.follow-list-avatar-placeholder {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--mint), #00a878);
+  flex-shrink: 0;
+}
+.follow-list-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.follow-list-at { font-size: 12px; color: var(--mint); font-weight: 600; }
+.follow-list-actions { flex-shrink: 0; }
