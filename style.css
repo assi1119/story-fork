@@ -7,25 +7,21 @@
   --mint-light: #e6faf3;
   --mint-dark: #00a878;
   --pink: #ff6b9d;
-  --purple: #a855f7;
+  --purple: #00c896;
   --blue: #3b82f6;
   --yellow: #fbbf24;
   --orange: #f97316;
-  --bg: #f8f0ff;
+  --bg: #f0fdf8;
   --card-bg: #ffffff;
-  --text: #2d1b69;
-  --text-sub: #7c6b9e;
-  --border: #e9d5ff;
-  --shadow: rgba(168,85,247,0.12);
+  --text: #1a1a1a;
+  --text-sub: #888888;
+  --border: #b2ead8;
+  --shadow: rgba(0,200,150,0.10);
 }
 
 body {
   font-family: 'Nunito', 'メイリオ', sans-serif;
   background: var(--bg);
-  background-image:
-    radial-gradient(circle at 10% 20%, rgba(0,200,150,0.08) 0%, transparent 50%),
-    radial-gradient(circle at 90% 80%, rgba(168,85,247,0.08) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(255,107,157,0.05) 0%, transparent 60%);
   color: var(--text);
   min-height: 100vh;
 }
@@ -55,10 +51,7 @@ header h1 {
   font-size: 32px;
   font-weight: 900;
   letter-spacing: 3px;
-  background: linear-gradient(135deg, var(--mint), var(--purple), var(--pink));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--mint);
   line-height: 1.1;
 }
 
@@ -113,7 +106,7 @@ header h1 {
 #user-dropdown a:hover, #user-dropdown button:hover { background: var(--mint-light); color: var(--mint); }
 
 .login-btn {
-  background: linear-gradient(135deg, var(--mint), var(--purple));
+  background: var(--mint);
   color: #fff; border: none; padding: 8px 22px; border-radius: 999px;
   font-size: 14px; cursor: pointer; font-family: inherit; font-weight: 800;
   transition: all 0.3s; box-shadow: 0 4px 15px rgba(168,85,247,0.3);
@@ -260,7 +253,7 @@ main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
 #login-form input:focus, #register-form input:focus { border-color: var(--purple); background: #fff; }
 
 .submit-btn {
-  background: linear-gradient(135deg, var(--mint), var(--purple));
+  background: var(--mint);
   color: #fff; border: none; padding: 12px 24px; border-radius: 999px;
   font-size: 15px; cursor: pointer; font-family: inherit; font-weight: 800;
   transition: all 0.3s; box-shadow: 0 4px 15px rgba(168,85,247,0.3);
@@ -396,7 +389,7 @@ main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
 }
 
 .admin-btn {
-  background: linear-gradient(135deg, var(--mint), var(--purple));
+  background: var(--mint);
   color: #fff; border: none; padding: 9px 22px; border-radius: 999px;
   font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 800;
   transition: all 0.3s; box-shadow: 0 4px 12px rgba(168,85,247,0.3);
