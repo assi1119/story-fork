@@ -225,6 +225,27 @@ function startCreate(mode) {
   addScene();
 }
 
+function getScenePath(sceneId) {
+  const paths = {};
+  const visited = new Set();
+
+  function traverse(id, path) {
+    if (!id || visited.has(id) || !scenes[id]) return;
+    visited.add(id);
+    paths[id] = path;
+    const scene = scenes[id];
+    scene.buttons.forEach((btn, i) => {
+      const label = String.fromCharCode(65 + i);
+      if (btn.next && scenes[btn.next]) {
+        traverse(btn.next, path ? path + '-' + label : label);
+      }
+    });
+  }
+
+  const rootId = Object.keys(scenes)[0];
+  if (rootId) traverse(rootId, 'START');
+  return paths[sceneId] || '';
+}
 
 function updateGenre() { renderTree(); }
 
@@ -728,9 +749,11 @@ function createSceneCard(scene) {
     }).join('');
   }
 
+  const scenePath = getScenePath(scene.id);
   card.innerHTML =
     '<div class="scene-header">' +
     '<span class="scene-label">' + scene.id + '</span>' +
+    (scenePath ? '<span class="scene-path-label">📍 ' + scenePath + '</span>' : '') +
     '<input type="text" class="scene-title-input" placeholder="シーンタイトル（任意）" value="' + (scene.title || '') + '" oninput="updateSceneTitle(\'' + scene.id + '\', this.value)">' +
     '<button class="copy-scene-btn" onclick="copyScene(\'' + scene.id + '\')" title="コピー">📋</button>' +
     '<button class="delete-scene-btn" onclick="deleteScene(\'' + scene.id + '\')">✕</button>' +
@@ -1312,19 +1335,52 @@ async function rateGame(gameId, rating) {
 // ===== お知らせ =====
 async function postNotice() {
   if (!currentUser || currentUser.uid !== ADMIN_UID) return;
-  const title = prompt('タイトルを入力'); if (!title) return;
-  const body = prompt('本文を入力'); if (!body) return;
+  showNoticeForm();
+}
+
+function showNoticeForm(existingId, existingTitle, existingBody) {
+  const overlay = document.createElement('div');
+  overlay.id = 'notice-form-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML =
+    '<div style="background:#fff;border-radius:24px;padding:32px;width:90%;max-width:560px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">' +
+    '<h2 style="font-size:20px;font-weight:800;color:var(--mint);">' + (existingId ? 'お知らせを編集' : 'お知らせを投稿') + '</h2>' +
+    '<div><label style="font-size:12px;font-weight:800;color:#888;display:block;margin-bottom:6px;">タイトル</label>' +
+    '<input id="notice-form-title" type="text" value="' + (existingTitle || '') + '" placeholder="タイトルを入力" style="width:100%;padding:10px 14px;border:2px solid #b2ead8;border-radius:10px;font-size:14px;font-family:inherit;outline:none;"></div>' +
+    '<div><label style="font-size:12px;font-weight:800;color:#888;display:block;margin-bottom:6px;">本文（複数行OK）</label>' +
+    '<textarea id="notice-form-body" placeholder="本文を入力..." style="width:100%;min-height:160px;padding:10px 14px;border:2px solid #b2ead8;border-radius:10px;font-size:14px;font-family:inherit;outline:none;resize:vertical;">' + (existingBody || '') + '</textarea></div>' +
+    '<div style="display:flex;gap:10px;">' +
+    '<button onclick="submitNoticeForm(\'' + (existingId || '') + '\')" style="background:var(--mint);color:#fff;border:none;padding:12px 28px;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;flex:1;">' + (existingId ? '更新する' : '投稿する') + '</button>' +
+    '<button onclick="closeNoticeForm()" style="background:transparent;color:#aaa;border:2px solid #ddd;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">キャンセル</button>' +
+    '</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function closeNoticeForm() {
+  const overlay = document.getElementById('notice-form-overlay');
+  if (overlay) overlay.remove();
+}
+
+async function submitNoticeForm(existingId) {
+  const title = document.getElementById('notice-form-title').value.trim();
+  const body = document.getElementById('notice-form-body').value.trim();
+  if (!title) { alert('タイトルを入力してください'); return; }
+  if (!body) { alert('本文を入力してください'); return; }
   try {
-    await addDoc(collection(db, 'notices'), { title, body, createdAt: new Date().toISOString() });
-    alert('投稿しました！'); loadNotices();
+    if (existingId) {
+      await updateDoc(doc(db, 'notices', existingId), { title, body });
+      alert('更新しました！');
+    } else {
+      await addDoc(collection(db, 'notices'), { title, body, createdAt: new Date().toISOString() });
+      alert('投稿しました！');
+    }
+    closeNoticeForm();
+    loadNotices();
   } catch (e) { alert('エラー：' + e.message); }
 }
 
 async function editNotice(noticeId, currentTitle, currentBody) {
-  const title = prompt('タイトルを編集', currentTitle); if (!title) return;
-  const body = prompt('本文を編集', currentBody); if (!body) return;
-  try { await updateDoc(doc(db, 'notices', noticeId), { title, body }); loadNotices(); }
-  catch (e) { alert('エラー：' + e.message); }
+  showNoticeForm(noticeId, currentTitle, currentBody);
 }
 
 async function deleteNotice(noticeId) {
@@ -1347,7 +1403,7 @@ async function loadNotices() {
     list.innerHTML = notices.map(n =>
       '<div class="notice-item">' +
       '<div class="notice-title">' + n.title + '</div>' +
-      '<div class="notice-body">' + n.body + '</div>' +
+      '<div class="notice-body">' + n.body.replace(/\n/g, '<br>') + '</div>' +
       '<div class="notice-footer"><div class="notice-date">' + new Date(n.createdAt).toLocaleDateString('ja-JP') + '</div>' +
       (isAdmin ? '<div class="notice-admin-btns">' +
         '<button class="notice-edit-btn" onclick="editNotice(\'' + n.id + '\', \'' + n.title.replace(/'/g, "\\'") + '\', \'' + n.body.replace(/'/g, "\\'") + '\')">編集</button>' +
@@ -1892,5 +1948,10 @@ async function deleteChar(charId) {
   try { await deleteDoc(doc(db, 'trpg_characters', charId)); loadTrpgChars(); }
   catch(e) { alert('エラー：' + e.message); }
 }
+
+window.showNoticeForm = showNoticeForm;
+window.closeNoticeForm = closeNoticeForm;
+window.submitNoticeForm = submitNoticeForm;
+window.getScenePath = getScenePath;
 
 loadGames();
